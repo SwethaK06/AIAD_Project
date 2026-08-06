@@ -10,7 +10,7 @@ pipeline = joblib.load("carbon_model.pkl")
 
 class EmissionRequest(BaseModel):
     vehicle_type: str
-    route_type: str
+    # route_type: str
     traffic_conditions: str
     distance_km: float
     package_weight_kg: float
@@ -25,7 +25,7 @@ def predict(data: EmissionRequest):
         "origin_facility": data.origin_facility,
         "destination_city": data.destination_city,
         "vehicle_type": data.vehicle_type,
-        "route_type": data.route_type,
+        # "route_type": data.route_type,
         "distance_km": data.distance_km,
         "package_weight_kg": data.package_weight_kg,
         "traffic_conditions": data.traffic_conditions
