@@ -15,17 +15,14 @@ class EmissionRequest(BaseModel):
     distance_km: float
     package_weight_kg: float
     # Optional parameters with default fallback values
-    origin_facility: str = "Jakarta Fulfillment Center"
-    destination_city: str = "Waynehaven"
+    # origin_facility: str = "Jakarta Fulfillment Center"
+    # destination_city: str = "Waynehaven"
 
 @app.post("/predict")
 def predict(data: EmissionRequest):
     # Construct DataFrame with ALL columns expected by carbon_model.pkl
     df_input = pd.DataFrame([{
-        "origin_facility": data.origin_facility,
-        "destination_city": data.destination_city,
         "vehicle_type": data.vehicle_type,
-        # "route_type": data.route_type,
         "distance_km": data.distance_km,
         "package_weight_kg": data.package_weight_kg,
         "traffic_conditions": data.traffic_conditions
