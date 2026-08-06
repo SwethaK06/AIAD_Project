@@ -15,17 +15,17 @@ from sklearn.metrics import (
     r2_score
 )
 
-print("="*60)
+print("=" * 60)
 print("CARBON EMISSION PREDICTION SYSTEM")
-print("="*60)
+print("=" * 60)
 
 total_start = time.time()
 
 # --------------------------------------------------
-# STEP 1
+# STEP 1 - Load dataset
 # --------------------------------------------------
 
-print("\n[STEP 1/8] Loading dataset...")
+print("\n[STEP 1/7] Loading dataset...")
 
 start = time.time()
 
@@ -36,18 +36,15 @@ print("Rows:", len(df))
 print("Columns:", len(df.columns))
 
 # --------------------------------------------------
-# STEP 2
+# STEP 2 - Prepare features
 # --------------------------------------------------
 
-print("\n[STEP 2/8] Preparing features...")
+print("\n[STEP 2/7] Preparing features...")
 
 start = time.time()
 
 categorical_features = [
-    "origin_facility",
-    "destination_city",
     "vehicle_type",
-    "route_type",
     "traffic_conditions"
 ]
 
@@ -56,22 +53,20 @@ numerical_features = [
     "package_weight_kg"
 ]
 
-X = df.drop(columns=[
-    "transaction_id",
-    "date",
-    "carbon_emission_kgco2e",
-    "is_eco_friendly"
-])
+X = df[
+    categorical_features +
+    numerical_features
+]
 
 y = df["carbon_emission_kgco2e"]
 
 print(f"Finished in {time.time()-start:.2f} seconds")
 
 # --------------------------------------------------
-# STEP 3
+# STEP 3 - Create pipeline
 # --------------------------------------------------
 
-print("\n[STEP 3/8] Creating preprocessing pipeline...")
+print("\n[STEP 3/7] Creating preprocessing pipeline...")
 
 start = time.time()
 
@@ -106,10 +101,10 @@ pipeline = Pipeline([
 print(f"Finished in {time.time()-start:.2f} seconds")
 
 # --------------------------------------------------
-# STEP 4
+# STEP 4 - Split data
 # --------------------------------------------------
 
-print("\n[STEP 4/8] Splitting dataset...")
+print("\n[STEP 4/7] Splitting dataset...")
 
 start = time.time()
 
@@ -125,12 +120,12 @@ print(f"Finished in {time.time()-start:.2f} seconds")
 MODEL_FILE = "carbon_model.pkl"
 
 # --------------------------------------------------
-# STEP 5
+# STEP 5 - Train or load model
 # --------------------------------------------------
 
 if os.path.exists(MODEL_FILE):
 
-    print("\n[STEP 5/8] Loading saved model...")
+    print("\n[STEP 5/7] Loading saved model...")
 
     start = time.time()
 
@@ -140,7 +135,7 @@ if os.path.exists(MODEL_FILE):
 
 else:
 
-    print("\n[STEP 5/8] Training Random Forest...")
+    print("\n[STEP 5/7] Training Random Forest...")
 
     start = time.time()
 
@@ -153,12 +148,11 @@ else:
     joblib.dump(pipeline, MODEL_FILE)
 
     print("Model saved.")
-
+    # --------------------------------------------------
+# STEP 6 - Evaluate model
 # --------------------------------------------------
-# STEP 6
-# --------------------------------------------------
 
-print("\n[STEP 6/8] Evaluating model...")
+print("\n[STEP 6/7] Evaluating model...")
 
 start = time.time()
 
@@ -176,17 +170,17 @@ r2 = r2_score(y_test, pred)
 print(f"Finished in {time.time()-start:.2f} seconds")
 
 print("\nMODEL PERFORMANCE")
-print("-"*30)
+print("-" * 30)
 print(f"MAE  : {mae:.3f}")
 print(f"RMSE : {rmse:.3f}")
 print(f"R²   : {r2:.4f}")
 print(f"Approx Accuracy : {r2*100:.2f}%")
 
 # --------------------------------------------------
-# STEP 7
+# STEP 7 - Smart input preparation
 # --------------------------------------------------
 
-print("\n[STEP 7/8] Preparing smart input...")
+print("\n[STEP 7/7] Preparing smart input...")
 
 category_values = {}
 
@@ -196,82 +190,117 @@ for col in categorical_features:
     )
 
 default_values = {
-    "origin_facility": df["origin_facility"].mode()[0],
-    "destination_city": df["destination_city"].mode()[0],
     "vehicle_type": df["vehicle_type"].mode()[0],
-    "route_type": df["route_type"].mode()[0],
     "traffic_conditions": df["traffic_conditions"].mode()[0],
     "distance_km": df["distance_km"].median(),
     "package_weight_kg": df["package_weight_kg"].median()
 }
 
+
 def smart_match(column, value):
 
-    if value.lower() == "none":
+    value = value.strip().lower()
+
+    if value == "none":
         return default_values[column]
 
+    # -----------------------------
+    # Vehicle Type Synonyms
+    # -----------------------------
+    if column == "vehicle_type":
+
+        mapping = {
+
+            "truck": "Truck",
+            "lorry": "Truck",
+            "heavy truck": "Truck",
+            "cargo truck": "Truck",
+            "semi": "Truck",
+            "semi truck": "Truck",
+
+            "van": "Van",
+            "delivery van": "Van",
+            "mini van": "Van",
+
+            "motorbike": "Motorcycle",
+            "bike": "Motorcycle",
+            "motorcycle": "Motorcycle",
+
+            "car": "Car",
+            "sedan": "Car"
+        }
+
+        if value in mapping:
+            print(f"Interpreted as '{mapping[value]}'")
+            return mapping[value]
+
+    # -----------------------------
+    # Traffic Synonyms
+    # -----------------------------
+    elif column == "traffic_conditions":
+
+        if any(word in value for word in [
+            "heavy",
+            "busy",
+            "congested",
+            "jam",
+            "traffic jam",
+            "very busy"
+        ]):
+
+            print("Interpreted as 'High'")
+            return "High"
+
+        if any(word in value for word in [
+            "medium",
+            "moderate",
+            "average",
+            "normal"
+        ]):
+
+            print("Interpreted as 'Medium'")
+            return "Medium"
+
+        if any(word in value for word in [
+            "light",
+            "low",
+            "clear",
+            "free",
+            "empty",
+            "no traffic"
+        ]):
+
+            print("Interpreted as 'Low'")
+            return "Low"
+
+    # Fuzzy matching
     choices = category_values[column]
 
     match = difflib.get_close_matches(
         value,
         choices,
         n=1,
-        cutoff=0.40
+        cutoff=0.5
     )
 
     if match:
-
-        if match[0].lower() != value.lower():
-
-            print(f"Interpreted '{value}' as '{match[0]}'")
-
         return match[0]
 
-    print(f"No similar value found. Using default for {column}")
+    print(f"Unknown {column}. Using default.")
 
     return default_values[column]
-    # --------------------------------------------------
-# STEP 8
-# --------------------------------------------------
+    print(f"\nTotal startup time: {time.time()-total_start:.2f} seconds")
 
-print("\n[STEP 8/8] Ready for predictions!")
-print(f"Total startup time: {time.time()-total_start:.2f} seconds")
-
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("CARBON EMISSION PREDICTOR")
-print("="*60)
+print("=" * 60)
 
 while True:
 
     print("\nType 'exit' at any prompt to quit.")
     print("Type 'none' if you don't know the value.\n")
 
-    # ----------------------------
-    # Origin Facility
-    # ----------------------------
-    origin = input("Origin Facility: ").strip()
-
-    if origin.lower() == "exit":
-        break
-
-    origin = smart_match("origin_facility", origin)
-
-    # ----------------------------
-    # Destination
-    # ----------------------------
-    destination = input("Destination City: ").strip()
-
-    if destination.lower() == "exit":
-        break
-
-    destination = smart_match(
-        "destination_city",
-        destination
-    )
-
-    # ----------------------------
     # Vehicle
-    # ----------------------------
     vehicle = input("Vehicle Type: ").strip()
 
     if vehicle.lower() == "exit":
@@ -282,22 +311,7 @@ while True:
         vehicle
     )
 
-    # ----------------------------
-    # Route
-    # ----------------------------
-    route = input("Route Type: ").strip()
-
-    if route.lower() == "exit":
-        break
-
-    route = smart_match(
-        "route_type",
-        route
-    )
-
-    # ----------------------------
     # Traffic
-    # ----------------------------
     traffic = input("Traffic Conditions: ").strip()
 
     if traffic.lower() == "exit":
@@ -308,9 +322,7 @@ while True:
         traffic
     )
 
-    # ----------------------------
     # Distance
-    # ----------------------------
     while True:
 
         distance = input("Distance (km): ").strip()
@@ -329,9 +341,7 @@ while True:
         except ValueError:
             print("Please enter a valid number.")
 
-    # ----------------------------
     # Weight
-    # ----------------------------
     while True:
 
         weight = input("Package Weight (kg): ").strip()
@@ -350,19 +360,13 @@ while True:
         except ValueError:
             print("Please enter a valid number.")
 
-    # ----------------------------
     # Create DataFrame
-    # ----------------------------
-
     sample = pd.DataFrame({
 
-        "origin_facility":[origin],
-        "destination_city":[destination],
-        "vehicle_type":[vehicle],
-        "route_type":[route],
-        "distance_km":[distance],
-        "package_weight_kg":[weight],
-        "traffic_conditions":[traffic]
+        "vehicle_type": [vehicle],
+        "traffic_conditions": [traffic],
+        "distance_km": [distance],
+        "package_weight_kg": [weight]
 
     })
 
@@ -370,21 +374,15 @@ while True:
 
     prediction = pipeline.predict(sample)[0]
 
-    # ----------------------------
-    # Eco Friendly Status
-    # ----------------------------
-
+    # Eco friendly
     eco_threshold = df["carbon_emission_kgco2e"].median()
 
     eco = "YES ✅" if prediction <= eco_threshold else "NO ❌"
 
-    # ----------------------------
     # Results
-    # ----------------------------
-
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PREDICTION RESULT")
-    print("="*60)
+    print("=" * 60)
 
     print("\nInterpreted Inputs")
 
@@ -395,6 +393,6 @@ while True:
 
     print(f"\nEco Friendly: {eco}")
 
-    print("="*60)
+    print("=" * 60)
 
 print("\nProgram closed successfully.")
