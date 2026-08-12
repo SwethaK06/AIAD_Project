@@ -10,12 +10,15 @@ import Analytics from "../components/Analytics";
 import HeatMap from "../components/HeatMap";
 import ESGReport from "../components/ESGReport";
 import ServiceStatus from "../components/ServiceStatus";
+import RoutePlanner from "../components/RoutePlanner";
 
 export default function Dashboard() {
   return (
     <div className="dashboard">
 
       <Navbar />
+
+      <RoutePlanner />
 
       <KPICards />
 
