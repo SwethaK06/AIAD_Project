@@ -1,100 +1,260 @@
+import os
 import requests
+from typing import List, Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel, Field
 
-# Endpoints (Local or Container Network)
-OSRM_URL = "http://router.project-osrm.org/route/v1/driving"
-ML_API_URL = "http://localhost:8000/predict"  # Update to container service name in K8s/Docker
+# =====================================================================
+# 1. MODULAR CONFIGURATION BLOCK
+# Centralized settings allow teammates to modify parameters, URLs, 
+# and weights without modifying core engine logic.
+# =====================================================================
 
-def derive_traffic_condition(avg_speed_kmh: float) -> str:
-    """Derives categorical traffic condition from OSRM average speed."""
-    if avg_speed_kmh >= 50.0:
-        return "Low"
-    elif avg_speed_kmh >= 35.0:
+# Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://host.docker.internal:8000/predict") # host docker because im in a containersied environment
+OSRM_BASE_URL = os.getenv("OSRM_BASE_URL", "http://router.project-osrm.org")
+
+# Fallback Configuration
+STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"  # Set to True to reject fake fallback values
+
+# Multi-Objective Scoring Weights (w_co2 + w_time MUST equal 1.0)
+WEIGHT_PROFILES = {
+    "green":    {"w_co2": 0.80, "w_time": 0.20},
+    "fastest":  {"w_co2": 0.20, "w_time": 0.80},
+    "balanced": {"w_co2": 0.50, "w_time": 0.50}
+}
+
+
+# =====================================================================
+# 2. DATA CONTRACT SCHEMAS (JSON PAYLOAD DEFINITIONS)
+# Standardized Pydantic models ensure strict input/output parsing 
+# for frontend UI integration.
+# =====================================================================
+
+class Coordinates(BaseModel):
+    lat: float = Field(..., example=1.3521, description="Latitude in decimal degrees")
+    lng: float = Field(..., example=103.8198, description="Longitude in decimal degrees")
+    address: Optional[str] = Field(None, description="Optional human-readable street address")
+
+
+class RouteRequest(BaseModel):
+    """Payload received from the Frontend UI."""
+    origin: Coordinates
+    destination: Coordinates
+    cargo_weight_kg: float = Field(..., gt=0, description="Payload weight in kilograms")
+    vehicle_type: str = Field(..., description="Vehicle category expected by ML model")
+    priority_weight: Optional[str] = Field("balanced", description="Optimization goal: green, fastest, or balanced")
+
+
+class RouteOption(BaseModel):
+    """Single candidate route output for UI display."""
+    route_id: str
+    tag: str
+    distance_km: float
+    duration_mins: float
+    predicted_co2_kgco2e: float
+    traffic_level: str
+    cost_score: float
+    geometry_polyline: str
+
+
+class OptimizationResponse(BaseModel):
+    """Final output response returned to the Frontend UI."""
+    status: str
+    trip_id: str
+    recommended_route_id: str
+    routes: List[RouteOption]
+
+
+# =====================================================================
+# 3. HELPER & UTILITY FUNCTIONS
+# =====================================================================
+
+def calculate_traffic_level(distance_km: float, duration_mins: float) -> str:
+    """
+    Estimates traffic density by computing average speed across segment.
+    """
+    if duration_mins <= 0:
         return "Normal"
-    elif avg_speed_kmh >= 20.0:
+        
+    avg_speed_kmh = distance_km / (duration_mins / 60.0)
+    
+    if avg_speed_kmh < 25.0:
         return "High"
+    elif avg_speed_kmh < 50.0:
+        return "Normal"
     else:
-        return "Severe Congestion"
+        return "Low"
 
-def get_greenest_route(
-    start_lon: float, 
-    start_lat: float, 
-    end_lon: float, 
-    end_lat: float, 
-    vehicle_type: str, 
-    route_type: str, 
-    package_weight_kg: float
-):
-    # 1. Fetch Candidate Routes from OSRM
-    coordinates = f"{start_lon},{start_lat};{end_lon},{end_lat}"
-    osrm_params = {
-        "overview": "full",
-        "geometries": "geojson",
-        "alternatives": "true"
-    }
+
+def calculate_cost_score(
+    duration_mins: float, 
+    co2_kg: float, 
+    priority: str, 
+    max_duration: float, 
+    max_co2: float
+) -> float:
+    """
+    Computes normalized multi-objective penalty score based on user preference.
+    Lower score indicates a better route matching user criteria.
+    """
+    weights = WEIGHT_PROFILES.get(priority.lower(), WEIGHT_PROFILES["balanced"])
     
-    osrm_response = requests.get(f"{OSRM_URL}/{coordinates}", params=osrm_params)
-    if osrm_response.status_code != 200:
-        raise Exception("Failed to fetch routes from OSRM engine.")
-        
-    routes_data = osrm_response.json().get("routes", [])
-    evaluated_routes = []
-
-    # 2. Process each candidate route through the ML Model
-    for idx, route in enumerate(routes_data):
-        dist_km = route["distance"] / 1000.0
-        duration_min = route["duration"] / 60.0
-        avg_speed_kmh = dist_km / (duration_min / 60.0) if duration_min > 0 else 30.0
-        
-        traffic = derive_traffic_condition(avg_speed_kmh)
-        
-        # Payload for ML API
-        ml_payload = {
-            "vehicle_type": vehicle_type,
-            "route_type": route_type,
-            "traffic_conditions": traffic,
-            "distance_km": round(dist_km, 2),
-            "package_weight_kg": package_weight_kg
-        }
-        
-        try:
-            ml_res = requests.post(ML_API_URL, json=ml_payload).json()
-            predicted_co2 = ml_res["predicted_co2_kgco2e"]
-        except Exception:
-            # Fallback if ML API is offline (Basic calculation)
-            predicted_co2 = round(dist_km * 0.25, 2)
-            
-        evaluated_routes.append({
-            "option_id": f"Route_{idx + 1}",
-            "distance_km": round(dist_km, 2),
-            "duration_min": round(duration_min, 1),
-            "avg_speed_kmh": round(avg_speed_kmh, 1),
-            "traffic_conditions": traffic,
-            "predicted_co2_kgco2e": predicted_co2,
-            "geometry": route["geometry"]
-        })
-
-    # 3. Sort by lowest emissions
-    evaluated_routes.sort(key=lambda x: x["predicted_co2_kgco2e"])
+    # Scale variables between 0.0 and 1.0 relative to route maxes
+    norm_co2 = co2_kg / max_co2 if max_co2 > 0 else 0.0
+    norm_time = duration_mins / max_duration if max_duration > 0 else 0.0
     
-    winning_route = evaluated_routes[0]
-    return {
-        "recommended_route": winning_route,
-        "all_candidates": evaluated_routes
-    }
+    score = (weights["w_co2"] * norm_co2) + (weights["w_time"] * norm_time)
+    return round(score, 4)
 
-# --- Test Execution ---
-if __name__ == "__main__":
-    # Test from Changi Airport -> Jurong West
-    result = get_greenest_route(
-        start_lon=103.9915, start_lat=1.3644,
-        end_lon=103.6831, end_lat=1.3404,
-        vehicle_type="Heavy Truck",
-        route_type="Inter-City",
-        package_weight_kg=1200.0
+
+# =====================================================================
+# 4. FASTAPI APPLICATION & ROUTING ENGINE
+# =====================================================================
+
+app = FastAPI(
+    title="Routing Service",
+    description="Multi-objective route optimization engine integrated with carbon prediction ML models.",
+    version="1.0.0"
+)
+
+
+@app.get("/")
+def health_check():
+    """Health check endpoint for Docker container orchestration."""
+    return {"status": "healthy", "service": "routing_engine"}
+
+
+@app.post("/api/v1/optimize-route", response_model=OptimizationResponse)
+def optimize_route(req: RouteRequest):
+    """
+    Main pipeline:
+    1. Queries OSRM for route alternatives & spatial geometries.
+    2. Sends path attributes to Machine Learning model for CO2 inference.
+    3. Normalizes and ranks route options using penalty cost function.
+    4. Returns JSON payload optimized for direct UI rendering.
+    """
+    
+    # Step 1: Query OSRM for spatial route alternatives
+    osrm_url = (
+        f"{OSRM_BASE_URL}/route/v1/driving/"
+        f"{req.origin.lng},{req.origin.lat};{req.destination.lng},{req.destination.lat}"
+        f"?alternatives=true&overview=full&geometries=polyline"
     )
     
-    print("=== RECOMMENDED GREEN ROUTE ===")
-    print(f"Option: {result['recommended_route']['option_id']}")
-    print(f"Distance: {result['recommended_route']['distance_km']} km")
-    print(f"Duration: {result['recommended_route']['duration_min']} mins")
-    print(f"Predicted CO2: {result['recommended_route']['predicted_co2_kgco2e']} kgCO2e")
+    try:
+        osrm_resp = requests.get(osrm_url, timeout=5.0)
+        if osrm_resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"OSRM Routing service failed with status code {osrm_resp.status_code}"
+            )
+        osrm_data = osrm_resp.json()
+        if "routes" not in osrm_data or len(osrm_data["routes"]) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No drivable routes found between specified origin and destination."
+            )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Routing service communication error: {str(e)}"
+        )
+
+    # Step 2: Parse raw OSRM candidates
+    candidate_routes = []
+    for idx, r_data in enumerate(osrm_data["routes"]):
+        dist_km = round(r_data["distance"] / 1000.0, 2)
+        dur_mins = round(r_data["duration"] / 60.0, 2)
+        traffic = calculate_traffic_level(dist_km, dur_mins)
+        
+        candidate_routes.append({
+            "route_id": f"route_{idx + 1}",
+            "distance_km": dist_km,
+            "duration_mins": dur_mins,
+            "traffic_level": traffic,
+            "geometry_polyline": r_data["geometry"]
+        })
+
+    # Step 3: Query ML Model API for live prediction (NO FAKE FALLBACKS)
+    evaluated_routes = []
+    for candidate in candidate_routes:
+        ml_payload = {
+            "vehicle_type": req.vehicle_type,
+            "traffic_conditions": candidate["traffic_level"], # Must match 'traffic_conditions' in app.py
+            "distance_km": candidate["distance_km"],
+            "package_weight_kg": req.cargo_weight_kg         # Must match 'package_weight_kg' in app.py
+        }
+        try:
+            ml_resp = requests.post(ML_SERVICE_URL, json=ml_payload, timeout=3.0)
+            
+            if ml_resp.status_code != 200:
+                # Log detailed failure to terminal stdout for debugging
+                print(f"[ERROR] ML Service failed (HTTP {ml_resp.status_code}): {ml_resp.text}")
+                
+                if STRICT_MODE:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"ML Prediction Engine returned HTTP {ml_resp.status_code}. Cannot provide verified CO2 calculation."
+                    )
+            
+            prediction_data = ml_resp.json()
+            predicted_co2 = prediction_data.get("predicted_co2_kgco2e")
+            
+            if predicted_co2 is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="ML Prediction Engine returned malformed response lacking 'predicted_co2_kgco2e' field."
+                )
+
+        except requests.exceptions.RequestException as e:
+            print(f"[CRITICAL ERROR] Failed to connect to ML Service at {ML_SERVICE_URL}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Unable to reach Machine Learning backend service ({ML_SERVICE_URL}). Ensure ml_service container is running."
+            )
+
+        candidate["predicted_co2_kgco2e"] = round(float(predicted_co2), 3)
+        evaluated_routes.append(candidate)
+
+    # Step 4: Multi-objective normalization and scoring
+    max_time = max(r["duration_mins"] for r in evaluated_routes) or 1.0
+    max_co2 = max(r["predicted_co2_kgco2e"] for r in evaluated_routes) or 1.0
+
+    for route in evaluated_routes:
+        route["cost_score"] = calculate_cost_score(
+            duration_mins=route["duration_mins"],
+            co2_kg=route["predicted_co2_kgco2e"],
+            priority=req.priority_weight,
+            max_duration=max_time,
+            max_co2=max_co2
+        )
+
+    # Sort candidates by cost_score ascending (lowest penalty wins)
+    ranked_routes = sorted(evaluated_routes, key=lambda x: x["cost_score"])
+
+    # Step 5: Format response for Frontend UI integration
+    formatted_options = []
+    for idx, route in enumerate(ranked_routes):
+        if idx == 0:
+            tag = f"Recommended ({req.priority_weight.capitalize()} Choice)"
+        else:
+            tag = "Alternative Option"
+
+        formatted_options.append(RouteOption(
+            route_id=route["route_id"],
+            tag=tag,
+            distance_km=route["distance_km"],
+            duration_mins=route["duration_mins"],
+            predicted_co2_kgco2e=route["predicted_co2_kgco2e"],
+            traffic_level=route["traffic_level"],
+            cost_score=route["cost_score"],
+            geometry_polyline=route["geometry_polyline"]
+        ))
+
+    return OptimizationResponse(
+        status="success",
+        trip_id="TRIP-OPT-8829",
+        recommended_route_id=formatted_options[0].route_id,
+        routes=formatted_options
+    )
