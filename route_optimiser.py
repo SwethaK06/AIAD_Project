@@ -9,6 +9,19 @@ from pydantic import BaseModel, Field
 # Centralized settings allow teammates to modify parameters, URLs, 
 # and weights without modifying core engine logic.
 # =====================================================================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://host.docker.internal:8000/predict") # host docker because im in a containersied environment
