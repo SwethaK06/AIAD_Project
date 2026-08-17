@@ -24,7 +24,7 @@ app.add_middleware(
 
 
 # Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
-ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://host.docker.internal:8000/predict") # host docker because im in a containersied environment
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://ml_service:8000/predict")
 OSRM_BASE_URL = os.getenv("OSRM_BASE_URL", "http://router.project-osrm.org")
 
 # Fallback Configuration
