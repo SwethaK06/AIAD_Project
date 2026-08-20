@@ -6,7 +6,7 @@ import pandas as pd
 app = FastAPI()
 
 # Load the saved model pipeline
-pipeline = joblib.load("carbon_model.pkl")
+pipeline = joblib.load("ML_Service/carbon_model.pkl")
 
 class EmissionRequest(BaseModel):
     vehicle_type: str

@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(title="Route Optimiser Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +26,8 @@ app.add_middleware(
 # Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://ml_service:8000/predict")
 OSRM_BASE_URL = os.getenv("OSRM_BASE_URL", "http://router.project-osrm.org")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/logistics_db") # to double check 
+STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"
 
 # Fallback Configuration
 STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"  # Set to True to reject fake fallback values
