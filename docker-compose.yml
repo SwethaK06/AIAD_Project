@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  # 1. PostgreSQL Database Container with Persistent Volume & Schema Initialization
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: logistics_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: logistics_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./green-logistics-database/init_pr.sql:/docker-entrypoint-initdb.d/init_pr.sql
+    networks:
+      - logistics_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d logistics_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Database REST API Microservice
+  db_service:
+    build:
+      context: ./green-logistics-database
+      dockerfile: Dockerfile
+    container_name: db_service
+    ports:
+      - "8002:8002"
+    environment:
+      - POSTGRES_HOST=postgres_db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=logistics_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - logistics_net
+
+  # 3. Machine Learning Carbon Prediction Service
+  ml_service:
+    build:
+      context: .
+      dockerfile: ML_Service/Dockerfile
+    container_name: ml_service
+    ports:
+      - "8000:8000"
+    networks:
+      - logistics_net
+
+  # 4. Route Optimization Engine
+  routing_service:
+    build:
+      context: ./routing-engine
+      dockerfile: Dockerfile
+    container_name: routing_service
+    ports:
+      - "8001:8001"
+    environment:
+      - ML_SERVICE_URL=http://ml_service:8000/predict
+      - DATABASE_URL=postgresql://postgres:password@postgres_db:5432/logistics_db
+    depends_on:
+      - ml_service
+      - db_service
+    networks:
+      - logistics_net
+
+  # 5. Frontend UI Web Application
+  frontend:
+    build:
+      context: ./Frontend-UI
+      dockerfile: Dockerfile
+    container_name: frontend_ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - routing_service
+    networks:
+      - logistics_net
+
+networks:
+  logistics_net:
+    driver: bridge
+
+volumes:
+  postgres_data:

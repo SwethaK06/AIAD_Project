@@ -12,7 +12,11 @@ from pydantic import BaseModel, Field
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Route Optimiser Service", version="1.0.0")
+app = FastAPI(
+    title="Routing Service",
+    description="Multi-objective route optimization engine integrated with carbon prediction ML models.",
+    version="1.0.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,9 +28,9 @@ app.add_middleware(
 
 
 # Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
-ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://ml_service:8000/predict")
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8000/predict")
 OSRM_BASE_URL = os.getenv("OSRM_BASE_URL", "http://router.project-osrm.org")
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/logistics_db") # to double check 
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/logistics_db")
 STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"
 
 # Fallback Configuration
@@ -124,14 +128,8 @@ def calculate_cost_score(
 
 
 # =====================================================================
-# 4. FASTAPI APPLICATION & ROUTING ENGINE
+# 4. ROUTING ENGINE ENDPOINTS
 # =====================================================================
-
-app = FastAPI(
-    title="Routing Service",
-    description="Multi-objective route optimization engine integrated with carbon prediction ML models.",
-    version="1.0.0"
-)
 
 
 @app.get("/")

@@ -19,19 +19,19 @@ export default function RoutePlanner() {
   const [priority, setPriority] = useState("balanced");
 
   const [isCalculating, setIsCalculating] = useState(false);
-
   const [errorMessage, setErrorMessage] = useState("");
-
   const [routeRequest, setRouteRequest] = useState(null);
 
   const [originResults, setOriginResults] = useState([]);
-
   const [destinationResults, setDestinationResults] = useState([]);
-
   const [selectedOrigin, setSelectedOrigin] = useState(null);
+  const [selectedDestination, setSelectedDestination] = useState(null);
 
-  const [selectedDestination, setSelectedDestination] =
-    useState(null);
+  const [optimizationResponse, setOptimizationResponse] = useState(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+  const [dbLogStatus, setDbLogStatus] = useState(null);
+  const [isLoggingDb, setIsLoggingDb] = useState(false);
 
   /*
    * Search for possible locations
@@ -145,80 +145,111 @@ export default function RoutePlanner() {
 
 
   /*
-   * Create the final routing JSON
-   *
-   * This happens only after the user has selected
-   * both the origin and destination.
+   * Sends the route request to the Routing Engine API
+   * and retrieves candidate route options with ML CO2 predictions.
    */
-  const handleCreateRouteRequest = () => {
+  const handleCreateRouteRequest = async () => {
     setErrorMessage("");
+    setOptimizationResponse(null);
+    setDbLogStatus(null);
 
-    /*
-     * Make sure origin was selected
-     */
     if (!selectedOrigin) {
-      setErrorMessage(
-        "Please select a location for the origin."
-      );
+      setErrorMessage("Please select a location for the origin.");
       return;
     }
 
-    /*
-     * Make sure destination was selected
-     */
     if (!selectedDestination) {
-      setErrorMessage(
-        "Please select a location for the destination."
-      );
+      setErrorMessage("Please select a location for the destination.");
       return;
     }
 
-    /*
-     * Make sure cargo weight is valid
-     */
     if (!cargoWeight || Number(cargoWeight) <= 0) {
-      setErrorMessage(
-        "Please enter a cargo weight greater than 0 kg."
-      );
+      setErrorMessage("Please enter a cargo weight greater than 0 kg.");
       return;
     }
 
-    /*
-     * Create the JSON object that will eventually
-     * be sent to the Routing Engine.
-     */
     const request = {
       origin: {
         lat: selectedOrigin.lat,
         lng: selectedOrigin.lng,
         address: selectedOrigin.address,
       },
-
       destination: {
         lat: selectedDestination.lat,
         lng: selectedDestination.lng,
         address: selectedDestination.address,
       },
-
       cargo_weight_kg: Number(cargoWeight),
-
       vehicle_type: vehicleType,
-
       priority_weight: priority,
     };
 
-    /*
-     * Store the request so it can be displayed
-     * on the dashboard.
-     */
     setRouteRequest(request);
+    setIsOptimizing(true);
 
-    /*
-     * Also print the JSON to the browser console
-     * for testing.
-     */
-    console.log("Routing Request JSON:");
-    console.log(request);
+    try {
+      const response = await fetch("http://localhost:8001/api/v1/optimize-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Routing service error (${response.status})`);
+      }
+
+      const data = await response.json();
+      setOptimizationResponse(data);
+      if (data.routes && data.routes.length > 0) {
+        setSelectedRouteId(data.recommended_route_id || data.routes[0].route_id);
+      }
+    } catch (err) {
+      setErrorMessage(err.message || "Unable to reach Routing Engine service at http://localhost:8001");
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  /*
+   * Logs selected trip to the Database Service
+   */
+  const handleConfirmAndLogTrip = async (route) => {
+    setDbLogStatus(null);
+    setIsLoggingDb(true);
+    setErrorMessage("");
+
+    try {
+      const tripPayload = {
+        trip_id: (optimizationResponse && optimizationResponse.trip_id) || `TRIP-${Date.now()}`,
+        origin: selectedOrigin.address,
+        destination: selectedDestination.address,
+        origin_coords: `${selectedOrigin.lat},${selectedOrigin.lng}`,
+        dest_coords: `${selectedDestination.lat},${selectedDestination.lng}`,
+        vehicle_type: vehicleType,
+        cargo_weight_kg: Number(cargoWeight),
+        chosen_route_id: route.route_id,
+        actual_co2_kgco2e: route.predicted_co2_kgco2e,
+        distance_km: route.distance_km,
+      };
+
+      const response = await fetch("http://localhost:8002/api/v1/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tripPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Database service error (${response.status})`);
+      }
+
+      const result = await response.json();
+      setDbLogStatus(result);
+    } catch (err) {
+      setErrorMessage(err.message || "Unable to log trip to Database service at http://localhost:8002");
+    } finally {
+      setIsLoggingDb(false);
+    }
   };
 
 
@@ -824,62 +855,121 @@ export default function RoutePlanner() {
 
 
       {/* =========================================
-          CREATE ROUTE REQUEST
+          CREATE & OPTIMIZE ROUTE REQUEST
       ========================================= */}
 
-      {selectedOrigin &&
-        selectedDestination && (
-
-          <div className="route-action">
-
-            <button
-              className="calculate-route-button"
-              onClick={handleCreateRouteRequest}
-            >
-
-              <FaLeaf />
-
-              Create Route Request
-
-            </button>
-
-          </div>
-
-        )}
+      {selectedOrigin && selectedDestination && (
+        <div className="route-action">
+          <button
+            className="calculate-route-button"
+            onClick={handleCreateRouteRequest}
+            disabled={isOptimizing}
+          >
+            <FaLeaf />
+            {isOptimizing ? "Optimizing Route via AI..." : "Optimize Route via AI"}
+          </button>
+        </div>
+      )}
 
 
       {/* =========================================
-          ROUTING REQUEST JSON
+          OPTIMIZATION RESULTS & CANDIDATE ROUTES
       ========================================= */}
 
-      {routeRequest && (
-
-        <div className="route-request-result">
-
+      {optimizationResponse && optimizationResponse.routes && (
+        <div className="route-request-result" style={{ marginTop: "20px" }}>
           <div className="route-success">
-
-            ✓ Route request created successfully
-
+            ✓ Found {optimizationResponse.routes.length} candidate route(s) (Trip ID: {optimizationResponse.trip_id})
           </div>
 
-
-          <h3>
-            Routing Request
+          <h3 style={{ marginTop: "15px", marginBottom: "10px" }}>
+            Ranked Route Candidates
           </h3>
 
+          <div className="location-results" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {optimizationResponse.routes.map((route) => (
+              <div
+                key={route.route_id}
+                style={{
+                  border: route.route_id === selectedRouteId ? "2px solid #10b981" : "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  backgroundColor: route.route_id === selectedRouteId ? "#f0fdf4" : "#ffffff",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <strong style={{ fontSize: "1.1rem", color: "#111827" }}>
+                    {route.tag}
+                  </strong>
+                  <span style={{ fontSize: "0.85rem", backgroundColor: "#e0e7ff", color: "#3730a3", padding: "2px 8px", borderRadius: "12px" }}>
+                    {route.route_id}
+                  </span>
+                </div>
 
-          <pre>
-            {JSON.stringify(
-              routeRequest,
-              null,
-              2
-            )}
-          </pre>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px", margin: "12px 0", fontSize: "0.9rem" }}>
+                  <div><strong>Distance:</strong> {route.distance_km} km</div>
+                  <div><strong>Duration:</strong> {route.duration_mins} mins</div>
+                  <div><strong>Predicted CO₂:</strong> <span style={{ color: "#059669", fontWeight: "bold" }}>{route.predicted_co2_kgco2e} kg</span></div>
+                  <div><strong>Traffic:</strong> {route.traffic_level}</div>
+                  <div><strong>Score:</strong> {route.cost_score}</div>
+                </div>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRouteId(route.route_id);
+                    handleConfirmAndLogTrip(route);
+                  }}
+                  disabled={isLoggingDb}
+                  style={{
+                    backgroundColor: "#059669",
+                    color: "white",
+                    border: "none",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginTop: "8px"
+                  }}
+                >
+                  <FaLeaf />
+                  {isLoggingDb && selectedRouteId === route.route_id
+                    ? "Logging to Database..."
+                    : "Select & Confirm Trip"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {dbLogStatus && (
+            <div className="route-success" style={{ marginTop: "15px", backgroundColor: "#ecfdf5", color: "#065f46", padding: "12px", borderRadius: "6px" }}>
+              ✓ Trip logged to Database! (Storage: <strong>{dbLogStatus.storage}</strong>, Trip ID: {dbLogStatus.trip_id})
+            </div>
+          )}
         </div>
-
       )}
 
+      {/* =========================================
+          ROUTING REQUEST PAYLOAD DEBUG
+      ========================================= */}
+
+      {routeRequest && !optimizationResponse && (
+        <div className="route-request-result">
+          <div className="route-success">
+            ✓ Route request created successfully
+          </div>
+
+          <h3>Routing Request Payload</h3>
+
+          <pre>
+            {JSON.stringify(routeRequest, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
