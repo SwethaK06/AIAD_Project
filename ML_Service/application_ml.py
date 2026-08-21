@@ -21,14 +21,7 @@ print("=" * 60)
 
 total_start = time.time()
 
-<<<<<<< HEAD
 #load dataset
-=======
-# --------------------------------------------------
-# STEP 1 - Load dataset
-# --------------------------------------------------
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 print("\n[STEP 1/7] Loading dataset...")
 
 start = time.time()
@@ -39,14 +32,7 @@ print(f"Dataset loaded in {time.time()-start:.2f} seconds")
 print("Rows:", len(df))
 print("Columns:", len(df.columns))
 
-<<<<<<< HEAD
 #prepare features, keeping only the required columns
-=======
-# --------------------------------------------------
-# STEP 2 - Prepare features
-# --------------------------------------------------
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 print("\n[STEP 2/7] Preparing features...")
 
 start = time.time()
@@ -70,22 +56,11 @@ y = df["carbon_emission_kgco2e"]
 
 print(f"Finished in {time.time()-start:.2f} seconds")
 
-<<<<<<< HEAD
 #creating pipeline
 print("\n[STEP 3/7] Creating preprocessing pipeline...")
 
 start = time.time()
 #encoding categorical values
-=======
-# --------------------------------------------------
-# STEP 3 - Create pipeline
-# --------------------------------------------------
-
-print("\n[STEP 3/7] Creating preprocessing pipeline...")
-
-start = time.time()
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 preprocessor = ColumnTransformer([
     (
         "cat",
@@ -98,11 +73,7 @@ preprocessor = ColumnTransformer([
         numerical_features
     )
 ])
-<<<<<<< HEAD
 #using the encoding variable then making random forest regression model
-=======
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 pipeline = Pipeline([
     (
         "preprocessor",
@@ -120,14 +91,7 @@ pipeline = Pipeline([
 
 print(f"Finished in {time.time()-start:.2f} seconds")
 
-<<<<<<< HEAD
 #train test split data, 20% test and 80% train
-=======
-# --------------------------------------------------
-# STEP 4 - Split data
-# --------------------------------------------------
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 print("\n[STEP 4/7] Splitting dataset...")
 
 start = time.time()
@@ -143,14 +107,7 @@ print(f"Finished in {time.time()-start:.2f} seconds")
 
 MODEL_FILE = "carbon_model.pkl"
 
-<<<<<<< HEAD
 #train model if first time running, if not then load the already trained model
-=======
-# --------------------------------------------------
-# STEP 5 - Train or load model
-# --------------------------------------------------
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 if os.path.exists(MODEL_FILE):
 
     print("\n[STEP 5/7] Loading saved model...")
@@ -176,15 +133,8 @@ else:
     joblib.dump(pipeline, MODEL_FILE)
 
     print("Model saved.")
-<<<<<<< HEAD
 
 #evaluate model performance
-=======
-    # --------------------------------------------------
-# STEP 6 - Evaluate model
-# --------------------------------------------------
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 print("\n[STEP 6/7] Evaluating model...")
 
 start = time.time()
@@ -209,22 +159,11 @@ print(f"RMSE : {rmse:.3f}")
 print(f"R²   : {r2:.4f}")
 print(f"Approx Accuracy : {r2*100:.2f}%")
 
-<<<<<<< HEAD
 #preparing input features
 print("\n[STEP 7/7] Preparing smart input...")
 
 category_values = {}
 #defining the default values used if user does not input anything relevant or if the pipeline does not recognise it
-=======
-# --------------------------------------------------
-# STEP 7 - Smart input preparation
-# --------------------------------------------------
-
-print("\n[STEP 7/7] Preparing smart input...")
-
-category_values = {}
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 for col in categorical_features:
     category_values[col] = list(
         df[col].astype(str).unique()
@@ -237,11 +176,7 @@ default_values = {
     "package_weight_kg": df["package_weight_kg"].median()
 }
 
-<<<<<<< HEAD
 #defines acceptable values and matches them with existing ones in the dataset used to train the model
-=======
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 def smart_match(column, value):
 
     value = value.strip().lower()
@@ -249,13 +184,7 @@ def smart_match(column, value):
     if value == "none":
         return default_values[column]
 
-<<<<<<< HEAD
     #vehicle type synonyms to be accepted
-=======
-    # -----------------------------
-    # Vehicle Type Synonyms
-    # -----------------------------
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     if column == "vehicle_type":
 
         mapping = {
@@ -283,13 +212,7 @@ def smart_match(column, value):
             print(f"Interpreted as '{mapping[value]}'")
             return mapping[value]
 
-<<<<<<< HEAD
     #traffic synonyms to be accepted
-=======
-    # -----------------------------
-    # Traffic Synonyms
-    # -----------------------------
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     elif column == "traffic_conditions":
 
         if any(word in value for word in [
@@ -326,11 +249,7 @@ def smart_match(column, value):
             print("Interpreted as 'Low'")
             return "Low"
 
-<<<<<<< HEAD
     #fuzzy matching to read mispelled user inputs etc, accepts any values with similarity of 50%
-=======
-    # Fuzzy matching
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     choices = category_values[column]
 
     match = difflib.get_close_matches(
@@ -351,22 +270,14 @@ def smart_match(column, value):
 print("\n" + "=" * 60)
 print("CARBON EMISSION PREDICTOR")
 print("=" * 60)
-<<<<<<< HEAD
 #lets user input the features required and applies the smart_match function
 #if none matches, uses default values
-=======
-
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
 while True:
 
     print("\nType 'exit' at any prompt to quit.")
     print("Type 'none' if you don't know the value.\n")
 
-<<<<<<< HEAD
     #vehicle
-=======
-    # Vehicle
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     vehicle = input("Vehicle Type: ").strip()
 
     if vehicle.lower() == "exit":
@@ -377,11 +288,7 @@ while True:
         vehicle
     )
 
-<<<<<<< HEAD
     #traffic
-=======
-    # Traffic
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     traffic = input("Traffic Conditions: ").strip()
 
     if traffic.lower() == "exit":
@@ -392,11 +299,7 @@ while True:
         traffic
     )
 
-<<<<<<< HEAD
     #distance
-=======
-    # Distance
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     while True:
 
         distance = input("Distance (km): ").strip()
@@ -415,11 +318,7 @@ while True:
         except ValueError:
             print("Please enter a valid number.")
 
-<<<<<<< HEAD
     #weight
-=======
-    # Weight
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     while True:
 
         weight = input("Package Weight (kg): ").strip()
@@ -438,11 +337,7 @@ while True:
         except ValueError:
             print("Please enter a valid number.")
 
-<<<<<<< HEAD
     #create dataframe
-=======
-    # Create DataFrame
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     sample = pd.DataFrame({
 
         "vehicle_type": [vehicle],
@@ -456,20 +351,12 @@ while True:
 
     prediction = pipeline.predict(sample)[0]
 
-<<<<<<< HEAD
     #is the co2 prediction higher than median
-=======
-    # Eco friendly
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     eco_threshold = df["carbon_emission_kgco2e"].median()
 
     eco = "YES ✅" if prediction <= eco_threshold else "NO ❌"
 
-<<<<<<< HEAD
     #results
-=======
-    # Results
->>>>>>> 86cb59f3df7ef637c2b407dad94e4426ab582838
     print("\n" + "=" * 60)
     print("PREDICTION RESULT")
     print("=" * 60)
