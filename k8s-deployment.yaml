@@ -149,7 +149,7 @@ spec:
     spec:
       containers:
         - name: ml-service
-          image: ml-service:v1
+          image: ml-service:v2
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
