@@ -1,9 +1,16 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+
+# Load central root .env file if present
+root_env = Path(__file__).resolve().parent.parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env, override=False)
 
 app = FastAPI(title="ML Carbon Emission Prediction Service", version="1.0.0")
 

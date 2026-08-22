@@ -254,6 +254,7 @@ export default function RoutePlanner({
         dest_coords: `${selectedDestination.lat},${selectedDestination.lng}`,
         vehicle_type: vehicleType,
         cargo_weight_kg: Number(cargoWeight),
+        route_priority: priority,
         recommended_route_id: route.route_id,
         chosen_route_id: route.route_id,
         predicted_co2_kgco2e: route.predicted_co2_kgco2e,

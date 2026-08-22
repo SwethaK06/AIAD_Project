@@ -1,7 +1,14 @@
 import os
 import uuid
 import requests
+from pathlib import Path
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
+
+# Load central root .env file if present
+root_env = Path(__file__).resolve().parent.parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env, override=False)
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -28,14 +35,11 @@ app.add_middleware(
 )
 
 
-# Service URLs: Reads from environment variables (Docker Compose) or defaults to local host
-ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8000/predict")
-OSRM_BASE_URL = os.getenv("OSRM_BASE_URL", "http://router.project-osrm.org")
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/logistics_db")
+# Service URLs & DB Connection: Reads strictly from environment variables (.env / Docker Compose)
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL")
+OSRM_BASE_URL = os.getenv("OSRM_BASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"
-
-# Fallback Configuration
-STRICT_MODE = os.getenv("STRICT_MODE", "true").lower() == "true"  # Set to True to reject fake fallback values
 
 # Multi-Objective Scoring Weights (w_co2 + w_time MUST equal 1.0)
 WEIGHT_PROFILES = {

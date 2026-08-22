@@ -62,6 +62,11 @@ class TripPayload(BaseModel):
         description="Cargo weight in kg"
     )
 
+    route_priority: Optional[str] = Field(
+        "green",
+        description="Optimization goal / route priority: green, fastest, or balanced"
+    )
+
     recommended_route_id: Optional[str] = Field(
         None,
         description="ID of the recommended route"
@@ -121,6 +126,7 @@ def log_trip(payload: TripPayload):
     pred_co2 = payload.predicted_co2_kgco2e if payload.predicted_co2_kgco2e is not None else (payload.actual_co2_kgco2e if payload.actual_co2_kgco2e is not None else 0.0)
     geom_poly = payload.geometry_polyline or ""
     dur_mins = payload.duration_minutes
+    priority = payload.route_priority or "green"
 
     trip_record = payload.dict()
     trip_record["recommended_route_id"] = rec_route_id
@@ -128,6 +134,7 @@ def log_trip(payload: TripPayload):
     trip_record["predicted_co2_kgco2e"] = pred_co2
     trip_record["actual_co2_kgco2e"] = pred_co2
     trip_record["geometry_polyline"] = geom_poly
+    trip_record["route_priority"] = priority
     trip_record["timestamp"] = timestamp
 
     postgres_success = False
@@ -145,6 +152,7 @@ def log_trip(payload: TripPayload):
                             dest_coords,
                             vehicle_type,
                             cargo_weight_kg,
+                            route_priority,
                             recommended_route_id,
                             predicted_co2_kgco2e,
                             distance_km,
@@ -152,7 +160,7 @@ def log_trip(payload: TripPayload):
                         )
                         VALUES (
                             %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s
+                            %s, %s, %s, %s, %s, %s, %s
                         )
                         ON CONFLICT (trip_id) DO UPDATE SET
                             origin = EXCLUDED.origin,
@@ -162,6 +170,7 @@ def log_trip(payload: TripPayload):
                             dest_coords = EXCLUDED.dest_coords,
                             vehicle_type = EXCLUDED.vehicle_type,
                             cargo_weight_kg = EXCLUDED.cargo_weight_kg,
+                            route_priority = EXCLUDED.route_priority,
                             recommended_route_id = EXCLUDED.recommended_route_id,
                             predicted_co2_kgco2e = EXCLUDED.predicted_co2_kgco2e,
                             distance_km = EXCLUDED.distance_km,
@@ -176,6 +185,7 @@ def log_trip(payload: TripPayload):
                         payload.dest_coords,
                         payload.vehicle_type,
                         payload.cargo_weight_kg,
+                        priority,
                         rec_route_id,
                         pred_co2,
                         payload.distance_km,
@@ -204,7 +214,7 @@ def get_trips():
         try:
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT trip_id, origin, destination, vehicle_type, cargo_weight_kg, recommended_route_id, predicted_co2_kgco2e, distance_km, timestamp FROM trips ORDER BY timestamp DESC LIMIT 50")
+                    cur.execute("SELECT trip_id, origin, destination, vehicle_type, cargo_weight_kg, route_priority, recommended_route_id, predicted_co2_kgco2e, distance_km, timestamp FROM trips ORDER BY timestamp DESC LIMIT 50")
                     rows = cur.fetchall()
                     trips = []
                     for r in rows:
@@ -214,12 +224,13 @@ def get_trips():
                             "destination": r[2],
                             "vehicle_type": r[3],
                             "cargo_weight_kg": float(r[4]) if r[4] is not None else 0,
-                            "recommended_route_id": r[5],
-                            "chosen_route_id": r[5],
-                            "predicted_co2_kgco2e": float(r[6]) if r[6] is not None else 0,
-                            "actual_co2_kgco2e": float(r[6]) if r[6] is not None else 0,
-                            "distance_km": float(r[7]) if r[7] is not None else 0,
-                            "timestamp": str(r[8])
+                            "route_priority": r[5] or "green",
+                            "recommended_route_id": r[6],
+                            "chosen_route_id": r[6],
+                            "predicted_co2_kgco2e": float(r[7]) if r[7] is not None else 0,
+                            "actual_co2_kgco2e": float(r[7]) if r[7] is not None else 0,
+                            "distance_km": float(r[8]) if r[8] is not None else 0,
+                            "timestamp": str(r[9])
                         })
                     return {"status": "success", "source": "postgres", "trips": trips}
         except Exception as e:

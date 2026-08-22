@@ -14,6 +14,7 @@ CREATE TABLE trips (
 
     vehicle_type VARCHAR(50) NOT NULL,
     cargo_weight_kg DECIMAL(10, 2) NOT NULL,
+    route_priority VARCHAR(50) DEFAULT 'green',
 
     recommended_route_id VARCHAR(50) NOT NULL,
 

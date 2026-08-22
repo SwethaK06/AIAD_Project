@@ -4,11 +4,7 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import FleetMap from "../components/FleetMap";
 import AIPrediction from "../components/AIPrediction";
-import Recommendations from "../components/Recommendations";
-import FleetTable from "../components/FleetTable";
 import Analytics from "../components/Analytics";
-import HeatMap from "../components/HeatMap";
-import ESGReport from "../components/ESGReport";
 import ServiceStatus from "../components/ServiceStatus";
 import RoutePlanner from "../components/RoutePlanner";
 
@@ -23,7 +19,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-
       <Navbar />
 
       <RoutePlanner
@@ -43,31 +38,15 @@ export default function Dashboard() {
       />
 
       <div className="row">
-
-        <AIPrediction />
-
-        <Recommendations />
-
-      </div>
-
-      <div className="row">
-
-        <FleetTable />
+        <AIPrediction
+          optimizationResponse={optimizationResponse}
+          selectedRouteId={selectedRouteId}
+        />
 
         <Analytics />
-
-      </div>
-
-      <div className="row">
-
-        <HeatMap />
-
-        <ESGReport />
-
       </div>
 
       <ServiceStatus />
-
     </div>
   );
 }
