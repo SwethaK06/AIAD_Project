@@ -1,0 +1,232 @@
+# =====================================================================
+# KUBERNETES MANIFEST FOR GREEN LOGISTICS MICROSERVICES ARCHITECTURE
+# Tested for deployment on Minikube & local/cloud K8s clusters
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 1. PERSISTENT VOLUME CLAIM FOR POSTGRESQL DATABASE
+# ---------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+
+# ---------------------------------------------------------------------
+# 2. POSTGRESQL DATABASE (DEPLOYMENT & SERVICE)
+# ---------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-db
+  template:
+    metadata:
+      labels:
+        app: postgres-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+            - name: POSTGRES_DB
+              value: "logistics_db"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data-volume
+      volumes:
+        - name: postgres-data-volume
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-db
+spec:
+  selector:
+    app: postgres-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+
+# ---------------------------------------------------------------------
+# 3. DATABASE REST API SERVICE (DEPLOYMENT & SERVICE)
+# ---------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-service
+  template:
+    metadata:
+      labels:
+        app: db-service
+    spec:
+      containers:
+        - name: db-service
+          image: db-service:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_HOST
+              value: "postgres-db"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "logistics_db"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+          ports:
+            - containerPort: 8002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-service
+spec:
+  selector:
+    app: db-service
+  ports:
+    - port: 8002
+      targetPort: 8002
+  type: LoadBalancer
+---
+
+# ---------------------------------------------------------------------
+# 4. ML PREDICTION SERVICE (DEPLOYMENT & SERVICE)
+# ---------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-service
+  template:
+    metadata:
+      labels:
+        app: ml-service
+    spec:
+      containers:
+        - name: ml-service
+          image: ml-service:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-service
+spec:
+  selector:
+    app: ml-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+
+# ---------------------------------------------------------------------
+# 5. ROUTING ENGINE (DEPLOYMENT & SERVICE)
+# ---------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: routing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: routing-service
+  template:
+    metadata:
+      labels:
+        app: routing-service
+    spec:
+      containers:
+        - name: routing-service
+          image: routing-service:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ML_SERVICE_URL
+              value: "http://ml-service:8000/predict"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:password@postgres-db:5432/logistics_db"
+          ports:
+            - containerPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: routing-service
+spec:
+  selector:
+    app: routing-service
+  ports:
+    - port: 8001
+      targetPort: 8001
+  type: LoadBalancer
+---
+
+# ---------------------------------------------------------------------
+# 6. FRONTEND UI (DEPLOYMENT & SERVICE)
+# ---------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-ui
+  template:
+    metadata:
+      labels:
+        app: frontend-ui
+    spec:
+      containers:
+        - name: frontend-ui
+          image: frontend-ui:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend-ui
+  ports:
+    - port: 3000
+      targetPort: 80
+  type: LoadBalancer
