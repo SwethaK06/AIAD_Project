@@ -1,11 +1,6 @@
-# =====================================================================
-# KUBERNETES MANIFEST FOR GREEN LOGISTICS MICROSERVICES ARCHITECTURE
 # (Reads environment configuration dynamically from local .env via Secret)
-# =====================================================================
 
-# ---------------------------------------------------------------------
-# 1. PERSISTENT VOLUME CLAIM & INITIALIZATION CONFIGMAP FOR POSTGRESQL
-# ---------------------------------------------------------------------
+# PERSISTENT VOLUME CLAIM & INITIALIZATION CONFIGMAP FOR POSTGRESQL
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -16,6 +11,7 @@ spec:
   resources:
     requests:
       storage: 2Gi
+# Request 2gb of persistent disk sotrage from cluster. prevents database loss when postgresql pods restart.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -39,10 +35,13 @@ data:
         distance_km DECIMAL(10, 2),
         duration_minutes DECIMAL(10, 2)
     );
+
+# Stores the SQL intilisation schema script.
+# It's mounted into /docker-entrypoint-initdb.d/init_pr.sql so that the PostgreSQL container automatically executes it on startup, creating the trips table automatically on the first activation.
 ---
-# ---------------------------------------------------------------------
-# 2. POSTGRESQL DATABASE (DEPLOYMENT & SERVICE)
-# ---------------------------------------------------------------------
+
+# POSTGRESQL DATABASE (DEPLOYMENT & SERVICE)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -90,10 +89,13 @@ spec:
     - port: 5432
       targetPort: 5432
   type: ClusterIP
+
+
+# ClusterIP keeps the database service internal to the Kubernetes cluster, for security so the database is not exposed
 ---
-# ---------------------------------------------------------------------
-# 3. DATABASE REST API SERVICE (DEPLOYMENT & SERVICE)
-# ---------------------------------------------------------------------
+
+# DATABASE REST API SERVICE (DEPLOYMENT & SERVICE)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -117,6 +119,7 @@ spec:
                 name: logistics-secret
           ports:
             - containerPort: 8002
+# The database service is a REST API that provides an interface for the frontend and other services to interact with the PostgreSQL database. It handles requests for storing and retrieving trip data, ensuring that the data is managed securely and efficiently.
 ---
 apiVersion: v1
 kind: Service
@@ -129,10 +132,13 @@ spec:
     - port: 8002
       targetPort: 8002
   type: LoadBalancer
+
+# The LoadBalancer service type exposes the database service externally, allowing other services and the frontend to access it. 
+# It provides a stable IP address for external access, making it easier to connect to the database service from outside the Kubernetes cluster.
 ---
-# ---------------------------------------------------------------------
-# 4. ML PREDICTION SERVICE (DEPLOYMENT & SERVICE)
-# ---------------------------------------------------------------------
+
+# ML PREDICTION SERVICE (DEPLOYMENT & SERVICE)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -156,6 +162,9 @@ spec:
                 name: logistics-secret
           ports:
             - containerPort: 8000
+
+# Lets the ML service be accessed internally by other services within the Kubernetes cluster, such as the routing engine and database service, without exposing it to external traffic.
+
 ---
 apiVersion: v1
 kind: Service
@@ -168,10 +177,11 @@ spec:
     - port: 8000
       targetPort: 8000
   type: ClusterIP
+
+# configured clusterip on port 8000
 ---
-# ---------------------------------------------------------------------
-# 5. ROUTING ENGINE (DEPLOYMENT & SERVICE)
-# ---------------------------------------------------------------------
+# ROUTING ENGINE (DEPLOYMENT & SERVICE)
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -207,10 +217,15 @@ spec:
     - port: 8001
       targetPort: 8001
   type: LoadBalancer
+
+# Loadbalancer on port 8001 to also allow external access to the routing engine service, enabling the frontend and other services to request route optimizations and interact with the routing engine.
+
+# It passes ML_SERVICE_URL and OSRM_SERVICE_URL as environment variables to the routing engine, allowing it to communicate with the ML prediction service and the OSRM routing service.
+
 ---
-# ---------------------------------------------------------------------
-# 6. FRONTEND UI (DEPLOYMENT & SERVICE)
-# ---------------------------------------------------------------------
+# FRONTEND UI (DEPLOYMENT & SERVICE)=
+
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -234,6 +249,8 @@ spec:
                 name: logistics-secret
           ports:
             - containerPort: 80
+
+
 ---
 apiVersion: v1
 kind: Service
@@ -246,3 +263,7 @@ spec:
     - port: 3000
       targetPort: 80
   type: LoadBalancer
+
+# Ensures that the frontend UI is accessible externally, allowing users to interact with the application through a web interface. 
+# Configured as LoadBalancer on port 3000 (so it can be accessed via localhost:3000 or the ip provided by the cluster).
+
