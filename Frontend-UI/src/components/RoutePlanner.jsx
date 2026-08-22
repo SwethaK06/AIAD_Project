@@ -11,7 +11,11 @@ import {
   FaBalanceScale,
 } from "react-icons/fa";
 
-export default function RoutePlanner() {
+export default function RoutePlanner({
+  onOptimizationResponse,
+  onRouteSelected,
+  onLocationsSelected
+}) {
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [cargoWeight, setCargoWeight] = useState("");
@@ -200,9 +204,27 @@ export default function RoutePlanner() {
       }
 
       const data = await response.json();
+
       setOptimizationResponse(data);
-      if (data.routes && data.routes.length > 0) {
-        setSelectedRouteId(data.recommended_route_id || data.routes[0].route_id);
+
+      const recommendedRouteId =
+        data.recommended_route_id ||
+        data.routes?.[0]?.route_id ||
+        null;
+      
+      setSelectedRouteId(recommendedRouteId);
+
+      // Send the routing response to Dashboard
+      if (onOptimizationResponse) {
+        onOptimizationResponse(data);
+      }
+
+      // Send origin and destination to Dashboard
+      if (onLocationsSelected) {
+        onLocationsSelected(
+          selectedOrigin,
+          selectedDestination
+        );
       }
     } catch (err) {
       setErrorMessage(err.message || "Unable to reach Routing Engine service at http://localhost:8001");
@@ -220,17 +242,25 @@ export default function RoutePlanner() {
     setErrorMessage("");
 
     try {
+      const uniqueTripId = (optimizationResponse && optimizationResponse.trip_id)
+        ? `${optimizationResponse.trip_id}-${Date.now().toString().slice(-4)}`
+        : `TRIP-${Date.now()}`;
+
       const tripPayload = {
-        trip_id: (optimizationResponse && optimizationResponse.trip_id) || `TRIP-${Date.now()}`,
+        trip_id: uniqueTripId,
         origin: selectedOrigin.address,
         destination: selectedDestination.address,
         origin_coords: `${selectedOrigin.lat},${selectedOrigin.lng}`,
         dest_coords: `${selectedDestination.lat},${selectedDestination.lng}`,
         vehicle_type: vehicleType,
         cargo_weight_kg: Number(cargoWeight),
+        recommended_route_id: route.route_id,
         chosen_route_id: route.route_id,
+        predicted_co2_kgco2e: route.predicted_co2_kgco2e,
         actual_co2_kgco2e: route.predicted_co2_kgco2e,
         distance_km: route.distance_km,
+        geometry_polyline: route.geometry_polyline || "",
+        duration_minutes: route.duration_mins || route.duration_minutes || 0,
       };
 
       const response = await fetch("http://localhost:8002/api/v1/trips", {
@@ -240,7 +270,9 @@ export default function RoutePlanner() {
       });
 
       if (!response.ok) {
-        throw new Error(`Database service error (${response.status})`);
+        const errorData = await response.json().catch(() => ({}));
+        const detailMsg = typeof errorData.detail === "string" ? errorData.detail : (Array.isArray(errorData.detail) ? errorData.detail.map(d => d.msg || JSON.stringify(d)).join(", ") : "");
+        throw new Error(detailMsg || `Database service error (${response.status})`);
       }
 
       const result = await response.json();
@@ -919,6 +951,11 @@ export default function RoutePlanner() {
                   type="button"
                   onClick={() => {
                     setSelectedRouteId(route.route_id);
+
+                    if (onRouteSelected) {
+                      onRouteSelected(route.route_id);
+                    }
+
                     handleConfirmAndLogTrip(route);
                   }}
                   disabled={isLoggingDb}

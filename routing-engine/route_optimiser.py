@@ -1,4 +1,5 @@
 import os
+import uuid
 import requests
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, status
@@ -267,7 +268,7 @@ def optimize_route(req: RouteRequest):
 
     return OptimizationResponse(
         status="success",
-        trip_id="TRIP-OPT-8829",
+        trip_id=f"TRIP-OPT-{uuid.uuid4().hex[:8].upper()}",
         recommended_route_id=formatted_options[0].route_id,
         routes=formatted_options
     )

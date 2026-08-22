@@ -1,7 +1,7 @@
 import "../styles/dashboard.css";
+import { useState } from "react";
 
 import Navbar from "../components/Navbar";
-import KPICards from "../components/KPICards";
 import FleetMap from "../components/FleetMap";
 import AIPrediction from "../components/AIPrediction";
 import Recommendations from "../components/Recommendations";
@@ -13,16 +13,34 @@ import ServiceStatus from "../components/ServiceStatus";
 import RoutePlanner from "../components/RoutePlanner";
 
 export default function Dashboard() {
+  const [optimizationResponse, setOptimizationResponse] = useState(null);
+
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+
+  const [selectedOrigin, setSelectedOrigin] = useState(null);
+
+  const [selectedDestination, setSelectedDestination] = useState(null);
+
   return (
     <div className="dashboard">
 
       <Navbar />
 
-      <RoutePlanner />
+      <RoutePlanner
+        onOptimizationResponse={setOptimizationResponse}
+        onRouteSelected={setSelectedRouteId}
+        onLocationsSelected={(origin, destination) => {
+          setSelectedOrigin(origin);
+          setSelectedDestination(destination);
+        }}
+      />
 
-      <KPICards />
-
-      <FleetMap />
+      <FleetMap 
+        optimizationResponse={optimizationResponse}
+        selectedRouteId={selectedRouteId}
+        selectedOrigin={selectedOrigin}
+        selectedDestination={selectedDestination}
+      />
 
       <div className="row">
 

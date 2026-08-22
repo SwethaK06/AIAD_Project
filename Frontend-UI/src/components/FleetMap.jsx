@@ -1,189 +1,395 @@
 import {
-MapContainer,
-TileLayer,
-Marker,
-Popup,
-Polyline
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  useMap
 } from "react-leaflet";
 
 import L from "leaflet";
+import { useEffect } from "react";
 
 import "leaflet/dist/leaflet.css";
 
+
+// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 
 L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
 
-iconRetinaUrl:
-"https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
 
-iconUrl:
-"https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-
-shadowUrl:
-"https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const trucks = [
 
-{
-id:"Truck A",
+// --------------------------------------------------
+// Decode Google encoded polyline
+// --------------------------------------------------
 
-driver:"John",
+function decodePolyline(encoded) {
 
-cargo:"850 kg",
+  let index = 0;
 
-co2:"6.4 kg",
+  let lat = 0;
+  let lng = 0;
 
-position:[1.3521,103.8198],
+  const coordinates = [];
 
-destination:[1.3400,103.9000],
 
-status:"Normal"
+  while (index < encoded.length) {
 
-},
+    let result = 0;
+    let shift = 0;
 
-{
-id:"Truck B",
+    let byte;
 
-driver:"Sarah",
 
-cargo:"620 kg",
+    do {
 
-co2:"4.1 kg",
+      byte = encoded.charCodeAt(index++) - 63;
 
-position:[1.3105,103.8660],
+      result |= (byte & 0x1f) << shift;
 
-destination:[1.3300,103.7800],
+      shift += 5;
 
-status:"Moderate"
+    } while (byte >= 0x20);
 
-},
 
-{
-id:"Truck C",
+    const deltaLat =
+      (result & 1)
+        ? ~(result >> 1)
+        : (result >> 1);
 
-driver:"David",
 
-cargo:"950 kg",
+    lat += deltaLat;
 
-co2:"8.3 kg",
 
-position:[1.3000,103.7900],
+    result = 0;
+    shift = 0;
 
-destination:[1.3900,103.8300],
 
-status:"High"
+    do {
 
+      byte = encoded.charCodeAt(index++) - 63;
+
+      result |= (byte & 0x1f) << shift;
+
+      shift += 5;
+
+    } while (byte >= 0x20);
+
+
+    const deltaLng =
+      (result & 1)
+        ? ~(result >> 1)
+        : (result >> 1);
+
+
+    lng += deltaLng;
+
+
+    coordinates.push([
+      lat / 1e5,
+      lng / 1e5
+    ]);
+
+  }
+
+
+  return coordinates;
 }
 
-];
 
-export default function FleetMap(){
+// --------------------------------------------------
+// Automatically move map to route
+// --------------------------------------------------
 
-return(
+function MapController({ routeCoordinates }) {
 
-<div className="section">
+  const map = useMap();
 
-<h2 className="section-title">
-Live Fleet Map
-</h2>
 
-<MapContainer
+  useEffect(() => {
 
-center={[1.3521,103.8198]}
+    if (
+      routeCoordinates &&
+      routeCoordinates.length > 0
+    ) {
 
-zoom={11}
+      const bounds =
+        L.latLngBounds(routeCoordinates);
 
-scrollWheelZoom={true}
+      map.fitBounds(bounds, {
+        padding: [40, 40]
+      });
 
-className="fleet-map"
+    }
 
->
+  }, [routeCoordinates, map]);
 
-<TileLayer
 
-url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  return null;
+}
 
-/>
 
-{trucks.map((truck)=>(
+// --------------------------------------------------
+// Fleet Map
+// --------------------------------------------------
 
-<Marker
+export default function FleetMap({
+  optimizationResponse,
+  selectedRouteId,
+  selectedOrigin,
+  selectedDestination
+}) {
 
-key={truck.id}
 
-position={truck.position}
+  // No routing data yet
+  if (
+    !optimizationResponse ||
+    !optimizationResponse.routes ||
+    optimizationResponse.routes.length === 0
+  ) {
 
->
+    return (
 
-<Polyline
+      <div className="section">
 
-positions={[
+        <h2 className="section-title">
+          Live Fleet Map
+        </h2>
 
-truck.position,
+        <div
+          className="fleet-map"
+          style={{
+            height: "500px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+        >
 
-truck.destination
+          <p>
+            Enter a route and click
+            "Optimize Route via AI"
+            to display the route.
+          </p>
 
-]}
+        </div>
 
-pathOptions={{
+      </div>
 
-color:"green",
+    );
 
-weight:5
+  }
 
-}}
 
-/>
+  // Find the selected/recommended route
+  const selectedRoute =
+    optimizationResponse.routes.find(
+      (route) =>
+        route.route_id === selectedRouteId
+    )
+    ||
+    optimizationResponse.routes.find(
+      (route) =>
+        route.route_id ===
+        optimizationResponse.recommended_route_id
+    )
+    ||
+    optimizationResponse.routes[0];
 
-<Marker position={truck.destination}>
 
-<Popup>
+  // Decode geometry_polyline
+  const routeCoordinates =
+    selectedRoute.geometry_polyline
+      ? decodePolyline(
+          selectedRoute.geometry_polyline
+        )
+      : [];
 
-<h3>{truck.id}</h3>
 
-<hr/>
+  return (
 
-<p><b>Driver</b>: {truck.driver}</p>
+    <div className="section">
 
-<p><b>Cargo</b>: {truck.cargo}</p>
+      <h2 className="section-title">
+        Live Fleet Map
+      </h2>
 
-<p><b>Predicted CO₂</b>: {truck.co2}</p>
 
-<p><b>Status</b>: {truck.status}</p>
+      <MapContainer
 
-<button>
+        center={
+          routeCoordinates.length > 0
+            ? routeCoordinates[0]
+            : [1.3521, 103.8198]
+        }
 
-Re-route Truck
+        zoom={12}
 
-</button>
+        scrollWheelZoom={true}
 
-</Popup>
+        className="fleet-map"
 
-</Marker>
+      >
 
-<Popup>
+        <TileLayer
 
-<h3>{truck.id}</h3>
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
-<p><b>Driver:</b> {truck.driver}</p>
+          attribution='&copy; OpenStreetMap contributors'
 
-<p><b>Cargo:</b> {truck.cargo}</p>
+        />
 
-<p><b>CO₂:</b> {truck.co2}</p>
 
-</Popup>
+        <MapController
+          routeCoordinates={routeCoordinates}
+        />
 
-</Marker>
 
-))}
+        {/* --------------------------------
+            Route
+        -------------------------------- */}
 
-</MapContainer>
+        {routeCoordinates.length > 0 && (
 
-</div>
+          <Polyline
 
-);
+            positions={routeCoordinates}
 
+            pathOptions={{
+              color: "green",
+              weight: 6
+            }}
+
+          />
+
+        )}
+
+
+        {/* --------------------------------
+            Origin
+        -------------------------------- */}
+
+        {selectedOrigin && (
+
+          <Marker
+
+            position={[
+              selectedOrigin.lat,
+              selectedOrigin.lng
+            ]}
+
+          >
+
+            <Popup>
+
+              <strong>
+                Origin
+              </strong>
+
+              <br />
+
+              {selectedOrigin.address}
+
+            </Popup>
+
+          </Marker>
+
+        )}
+
+
+        {/* --------------------------------
+            Destination
+        -------------------------------- */}
+
+        {selectedDestination && (
+
+          <Marker
+
+            position={[
+              selectedDestination.lat,
+              selectedDestination.lng
+            ]}
+
+          >
+
+            <Popup>
+
+              <strong>
+                Destination
+              </strong>
+
+              <br />
+
+              {selectedDestination.address}
+
+            </Popup>
+
+          </Marker>
+
+        )}
+
+
+        {/* --------------------------------
+            Route Information
+        -------------------------------- */}
+
+        {routeCoordinates.length > 0 && (
+
+          <Marker
+            position={routeCoordinates[0]}
+          >
+
+            <Popup>
+
+              <h3>
+                {selectedRoute.tag}
+              </h3>
+
+              <hr />
+
+              <p>
+                <strong>Route:</strong>{" "}
+                {selectedRoute.route_id}
+              </p>
+
+              <p>
+                <strong>Distance:</strong>{" "}
+                {selectedRoute.distance_km} km
+              </p>
+
+              <p>
+                <strong>Duration:</strong>{" "}
+                {selectedRoute.duration_mins} mins
+              </p>
+
+              <p>
+                <strong>Predicted CO₂:</strong>{" "}
+                {selectedRoute.predicted_co2_kgco2e} kg
+              </p>
+
+              <p>
+                <strong>Traffic:</strong>{" "}
+                {selectedRoute.traffic_level}
+              </p>
+
+            </Popup>
+
+          </Marker>
+
+        )}
+
+      </MapContainer>
+
+    </div>
+
+  );
 }
