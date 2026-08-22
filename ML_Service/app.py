@@ -4,6 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+#load central root .env file if present
+root_env = Path(_file_).resolve().parent.parent / ".env"
+if root_env.exists():
+    load_dotenv(dotenv_path=root_env, override=False)
 #creates FastAPI
 app = FastAPI(title="ML Carbon Emission Prediction Service", version="1.0.0")
 #enables CORS, allowing communication with this API
