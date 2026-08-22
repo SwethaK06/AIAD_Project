@@ -1,10 +1,10 @@
 # =====================================================================
 # KUBERNETES MANIFEST FOR GREEN LOGISTICS MICROSERVICES ARCHITECTURE
-# Tested for deployment on Minikube & local/cloud K8s clusters
+# Updated with recent database schema updates & environment configuration
 # =====================================================================
 
 # ---------------------------------------------------------------------
-# 1. PERSISTENT VOLUME CLAIM FOR POSTGRESQL DATABASE
+# 1. PERSISTENT VOLUME CLAIM & CONFIGMAP FOR POSTGRESQL
 # ---------------------------------------------------------------------
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -16,6 +16,29 @@ spec:
   resources:
     requests:
       storage: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+data:
+  init_pr.sql: |
+    CREATE TABLE IF NOT EXISTS trips (
+        trip_id VARCHAR(36) PRIMARY KEY,
+        timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        origin VARCHAR(255) NOT NULL,
+        destination VARCHAR(255) NOT NULL,
+        geometry_polyline TEXT NOT NULL,
+        origin_coords VARCHAR(100) NOT NULL,
+        dest_coords VARCHAR(100) NOT NULL,
+        vehicle_type VARCHAR(50) NOT NULL,
+        cargo_weight_kg DECIMAL(10, 2) NOT NULL,
+        route_priority VARCHAR(50) DEFAULT 'green',
+        recommended_route_id VARCHAR(50) NOT NULL,
+        predicted_co2_kgco2e DECIMAL(12, 4),
+        distance_km DECIMAL(10, 2),
+        duration_minutes DECIMAL(10, 2)
+    );
 ---
 
 # ---------------------------------------------------------------------
@@ -50,10 +73,16 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-data-volume
+            - mountPath: /docker-entrypoint-initdb.d/init_pr.sql
+              subPath: init_pr.sql
+              name: postgres-init-volume
       volumes:
         - name: postgres-data-volume
           persistentVolumeClaim:
             claimName: postgres-pvc
+        - name: postgres-init-volume
+          configMap:
+            name: postgres-init-sql
 ---
 apiVersion: v1
 kind: Service
@@ -177,6 +206,8 @@ spec:
           env:
             - name: ML_SERVICE_URL
               value: "http://ml-service:8000/predict"
+            - name: OSRM_BASE_URL
+              value: "http://router.project-osrm.org"
             - name: DATABASE_URL
               value: "postgresql://postgres:password@postgres-db:5432/logistics_db"
           ports:

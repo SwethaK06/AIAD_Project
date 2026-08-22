@@ -6,9 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 try:
-    from db_pr import get_db_connection
+    from db import get_db_connection
 except ImportError:
-    get_db_connection = None
+    try:
+        from db_pr import get_db_connection
+    except ImportError:
+        get_db_connection = None
 
 app = FastAPI(title="Green Logistics Database Service", version="1.0.0")
 
