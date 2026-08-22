@@ -26,15 +26,21 @@ ChartJS.register(
 export default function Analytics() {
   const [tripsData, setTripsData] = useState([]);
 
-  const fetchTrips = () => {
-    fetch("http://localhost:8002/api/v1/trips")
-      .then((res) => res.json())
-      .then((data) => {
+  const fetchTrips = async () => {
+    try {
+      let res = await fetch("/api/v1/trips").catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch("http://localhost:8002/api/v1/trips");
+      }
+      if (res && res.ok) {
+        const data = await res.json();
         if (data.status === "success" && Array.isArray(data.trips)) {
           setTripsData(data.trips);
         }
-      })
-      .catch((err) => console.log("Analytics fetch note:", err));
+      }
+    } catch (err) {
+      console.log("Analytics fetch note:", err);
+    }
   };
 
   useEffect(() => {

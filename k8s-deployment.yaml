@@ -1,10 +1,10 @@
 # =====================================================================
 # KUBERNETES MANIFEST FOR GREEN LOGISTICS MICROSERVICES ARCHITECTURE
-# Updated with recent database schema updates & environment configuration
+# (Reads environment configuration dynamically from local .env via Secret)
 # =====================================================================
 
 # ---------------------------------------------------------------------
-# 1. PERSISTENT VOLUME CLAIM & CONFIGMAP FOR POSTGRESQL
+# 1. PERSISTENT VOLUME CLAIM & INITIALIZATION CONFIGMAP FOR POSTGRESQL
 # ---------------------------------------------------------------------
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -40,7 +40,6 @@ data:
         duration_minutes DECIMAL(10, 2)
     );
 ---
-
 # ---------------------------------------------------------------------
 # 2. POSTGRESQL DATABASE (DEPLOYMENT & SERVICE)
 # ---------------------------------------------------------------------
@@ -61,13 +60,9 @@ spec:
       containers:
         - name: postgres
           image: postgres:15-alpine
-          env:
-            - name: POSTGRES_USER
-              value: "postgres"
-            - name: POSTGRES_PASSWORD
-              value: "password"
-            - name: POSTGRES_DB
-              value: "logistics_db"
+          envFrom:
+            - secretRef:
+                name: logistics-secret
           ports:
             - containerPort: 5432
           volumeMounts:
@@ -96,7 +91,6 @@ spec:
       targetPort: 5432
   type: ClusterIP
 ---
-
 # ---------------------------------------------------------------------
 # 3. DATABASE REST API SERVICE (DEPLOYMENT & SERVICE)
 # ---------------------------------------------------------------------
@@ -116,19 +110,11 @@ spec:
     spec:
       containers:
         - name: db-service
-          image: db-service:v1
+          image: db-service:v2
           imagePullPolicy: IfNotPresent
-          env:
-            - name: POSTGRES_HOST
-              value: "postgres-db"
-            - name: POSTGRES_PORT
-              value: "5432"
-            - name: POSTGRES_DB
-              value: "logistics_db"
-            - name: POSTGRES_USER
-              value: "postgres"
-            - name: POSTGRES_PASSWORD
-              value: "password"
+          envFrom:
+            - secretRef:
+                name: logistics-secret
           ports:
             - containerPort: 8002
 ---
@@ -144,7 +130,6 @@ spec:
       targetPort: 8002
   type: LoadBalancer
 ---
-
 # ---------------------------------------------------------------------
 # 4. ML PREDICTION SERVICE (DEPLOYMENT & SERVICE)
 # ---------------------------------------------------------------------
@@ -166,6 +151,9 @@ spec:
         - name: ml-service
           image: ml-service:v1
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: logistics-secret
           ports:
             - containerPort: 8000
 ---
@@ -181,7 +169,6 @@ spec:
       targetPort: 8000
   type: ClusterIP
 ---
-
 # ---------------------------------------------------------------------
 # 5. ROUTING ENGINE (DEPLOYMENT & SERVICE)
 # ---------------------------------------------------------------------
@@ -201,15 +188,11 @@ spec:
     spec:
       containers:
         - name: routing-service
-          image: routing-service:v1
+          image: routing-service:v2
           imagePullPolicy: IfNotPresent
-          env:
-            - name: ML_SERVICE_URL
-              value: "http://ml-service:8000/predict"
-            - name: OSRM_BASE_URL
-              value: "http://router.project-osrm.org"
-            - name: DATABASE_URL
-              value: "postgresql://postgres:password@postgres-db:5432/logistics_db"
+          envFrom:
+            - secretRef:
+                name: logistics-secret
           ports:
             - containerPort: 8001
 ---
@@ -225,7 +208,6 @@ spec:
       targetPort: 8001
   type: LoadBalancer
 ---
-
 # ---------------------------------------------------------------------
 # 6. FRONTEND UI (DEPLOYMENT & SERVICE)
 # ---------------------------------------------------------------------
@@ -245,8 +227,11 @@ spec:
     spec:
       containers:
         - name: frontend-ui
-          image: frontend-ui:v2
-          imagePullPolicy: Never
+          image: frontend-ui:v5
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: logistics-secret
           ports:
             - containerPort: 80
 ---

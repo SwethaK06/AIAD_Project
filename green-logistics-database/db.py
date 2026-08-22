@@ -27,5 +27,5 @@ def get_db_connection():
         dbname=dbname,
         user=user,
         password=password,
-        connect_timeout=3
+        connect_timeout=5
     )

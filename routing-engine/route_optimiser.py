@@ -138,6 +138,7 @@ def calculate_cost_score(
 
 
 @app.get("/")
+@app.get("/health")
 def health_check():
     """Health check endpoint for Docker container orchestration."""
     return {"status": "healthy", "service": "routing_engine"}

@@ -192,11 +192,19 @@ export default function RoutePlanner({
     setIsOptimizing(true);
 
     try {
-      const response = await fetch("http://localhost:8001/api/v1/optimize-route", {
+      let response = await fetch("/api/v1/optimize-route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
-      });
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch("http://localhost:8001/api/v1/optimize-route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(request),
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -227,7 +235,7 @@ export default function RoutePlanner({
         );
       }
     } catch (err) {
-      setErrorMessage(err.message || "Unable to reach Routing Engine service at http://localhost:8001");
+      setErrorMessage(err.message || "Unable to reach Routing Engine service");
     } finally {
       setIsOptimizing(false);
     }
@@ -264,11 +272,19 @@ export default function RoutePlanner({
         duration_minutes: route.duration_mins || route.duration_minutes || 0,
       };
 
-      const response = await fetch("http://localhost:8002/api/v1/trips", {
+      let response = await fetch("/api/v1/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tripPayload),
-      });
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        response = await fetch("http://localhost:8002/api/v1/trips", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(tripPayload),
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

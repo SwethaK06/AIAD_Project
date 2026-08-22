@@ -890,70 +890,88 @@ color:#2563eb;
 
 }
 
+.health-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.health-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.health-refresh-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .online{
-
 display:flex;
-
 align-items:center;
-
 gap:8px;
-
 color:#16a34a;
-
 font-weight:600;
-
 margin-top:8px;
+}
 
+.offline{
+display:flex;
+align-items:center;
+gap:8px;
+color:#dc2626;
+font-weight:600;
+margin-top:8px;
 }
 
 .latency{
-
 font-size:18px;
-
 font-weight:700;
-
 color:#555;
-
 }
 
 .system-summary{
-
 display:grid;
-
 grid-template-columns:repeat(4,1fr);
-
 gap:20px;
-
 margin-top:25px;
-
 text-align:center;
-
 }
 
 .system-summary div{
-
 background:#f8fafc;
-
 padding:20px;
-
 border-radius:15px;
-
 }
 
 .system-summary h3{
-
 color:#666;
-
 margin-bottom:10px;
-
 }
 
 .system-summary h2{
-
 font-size:28px;
-
 color:#111827;
-
 }
 
 @media(max-width:900px){

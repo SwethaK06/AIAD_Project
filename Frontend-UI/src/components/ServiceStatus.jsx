@@ -1,136 +1,198 @@
+import { useState, useEffect, useCallback } from "react";
 import {
   FaDatabase,
   FaRobot,
   FaRoute,
   FaDesktop,
-  FaCheckCircle
+  FaCheckCircle,
+  FaTimesCircle,
+  FaSyncAlt
 } from "react-icons/fa";
 
-const services = [
-
-{
-name:"Database Service",
-icon:<FaDatabase/>,
-status:"Online",
-latency:"18 ms"
-},
-
-{
-name:"AI Prediction API",
-icon:<FaRobot/>,
-status:"Online",
-latency:"32 ms"
-},
-
-{
-name:"Route Optimizer",
-icon:<FaRoute/>,
-status:"Online",
-latency:"21 ms"
-},
-
-{
-name:"Dashboard API",
-icon:<FaDesktop/>,
-status:"Online",
-latency:"14 ms"
-}
-
+const INITIAL_SERVICES = [
+  {
+    id: "database_service",
+    name: "Database Service",
+    icon: <FaDatabase />,
+    endpoint: "/api/health/database",
+    status: "Checking...",
+    online: false,
+    latency: "--"
+  },
+  {
+    id: "ai_prediction",
+    name: "AI Prediction API",
+    icon: <FaRobot />,
+    endpoint: "/api/health/ml",
+    status: "Checking...",
+    online: false,
+    latency: "--"
+  },
+  {
+    id: "route_optimizer",
+    name: "Route Optimizer",
+    icon: <FaRoute />,
+    endpoint: "/api/health/routing",
+    status: "Checking...",
+    online: false,
+    latency: "--"
+  },
+  {
+    id: "dashboard_api",
+    name: "Dashboard API",
+    icon: <FaDesktop />,
+    endpoint: "/api/health/dashboard",
+    status: "Checking...",
+    online: false,
+    latency: "--"
+  }
 ];
 
-export default function ServiceStatus(){
+export default function ServiceStatus() {
+  const [services, setServices] = useState(INITIAL_SERVICES);
+  const [lastSync, setLastSync] = useState("--:--");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-return(
+  const checkHealth = useCallback(async () => {
+    setIsRefreshing(true);
 
-<div className="section">
+    const now = new Date();
 
-<h2 className="section-title">
+    const formattedTime = now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
 
-⚙️ System Health Dashboard
+    const updatedServices = await Promise.all(
+      INITIAL_SERVICES.map(async (service) => {
+        const startTime = performance.now();
 
-</h2>
+        try {
+          const controller = new AbortController();
 
-<div className="service-grid">
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 6000);
 
-{services.map((service,index)=>(
+          const res = await fetch(service.endpoint, {
+            method: "GET",
+            signal: controller.signal,
+            cache: "no-store"
+          });
 
-<div
-className="service-card"
-key={index}
->
+          clearTimeout(timeoutId);
 
-<div className="service-icon">
+          const durationMs = Math.round(
+            performance.now() - startTime
+          );
 
-{service.icon}
+          if (res.ok) {
+            return {
+              ...service,
+              status: "Online",
+              online: true,
+              latency: `${durationMs} ms`
+            };
+          }
 
-</div>
+          return {
+            ...service,
+            status: "Offline",
+            online: false,
+            latency: "--"
+          };
 
-<div>
+        } catch (err) {
+          return {
+            ...service,
+            status: "Offline",
+            online: false,
+            latency: "--"
+          };
+        }
+      })
+    );
 
-<h3>{service.name}</h3>
+    setServices(updatedServices);
+    setLastSync(formattedTime);
+    setIsRefreshing(false);
 
-<p className="online">
+  }, []);
 
-<FaCheckCircle/>
+  useEffect(() => {
+    checkHealth();
+    const interval = setInterval(checkHealth, 10000);
+    return () => clearInterval(interval);
+  }, [checkHealth]);
 
-{service.status}
+  const onlineCount = services.filter(s => s.online).length;
+  const totalCount = services.length;
+  const healthPercent = Math.round((onlineCount / totalCount) * 100);
 
-</p>
+  let podStatus = "Healthy";
+  let podColor = "#16a34a";
+  if (onlineCount === 0) {
+    podStatus = "Offline";
+    podColor = "#dc2626";
+  } else if (onlineCount < totalCount) {
+    podStatus = "Degraded";
+    podColor = "#ea580c";
+  }
 
-</div>
+  return (
+    <div className="section">
+      <div className="health-header">
+        <h2 className="section-title">⚙️ System Health Dashboard</h2>
+        <button className="health-refresh-btn" onClick={checkHealth} disabled={isRefreshing}>
+          <FaSyncAlt className={isRefreshing ? "spin-icon" : ""} />
+          {isRefreshing ? "Checking..." : "Refresh Status"}
+        </button>
+      </div>
 
-<div className="latency">
+      <div className="service-grid">
+        {services.map((service) => (
+          <div className="service-card" key={service.id}>
+            <div className="service-icon">{service.icon}</div>
 
-{service.latency}
+            <div>
+              <h3>{service.name}</h3>
+              <p className={service.online ? "online" : "offline"}>
+                {service.online ? <FaCheckCircle /> : <FaTimesCircle />}
+                {service.status}
+              </p>
+            </div>
 
-</div>
+            <div className="latency">{service.latency}</div>
+          </div>
+        ))}
+      </div>
 
-</div>
+      <hr />
 
-))}
+      <div className="system-summary">
+        <div>
+          <h3>Overall Health</h3>
+          <h2 style={{ color: healthPercent > 70 ? "#16a34a" : healthPercent > 30 ? "#ea580c" : "#dc2626" }}>
+            {healthPercent}%
+          </h2>
+        </div>
 
-</div>
+        <div>
+          <h3>Containers Running</h3>
+          <h2>{onlineCount} / {totalCount}</h2>
+        </div>
 
-<hr/>
+        <div>
+          <h3>Kubernetes Pods</h3>
+          <h2 style={{ color: podColor }}>{podStatus}</h2>
+        </div>
 
-<div className="system-summary">
-
-<div>
-
-<h3>Overall Health</h3>
-
-<h2>99%</h2>
-
-</div>
-
-<div>
-
-<h3>Containers Running</h3>
-
-<h2>4 / 4</h2>
-
-</div>
-
-<div>
-
-<h3>Kubernetes Pods</h3>
-
-<h2>Healthy</h2>
-
-</div>
-
-<div>
-
-<h3>Last Sync</h3>
-
-<h2>22:15</h2>
-
-</div>
-
-</div>
-
-</div>
-
-);
-
+        <div>
+          <h3>Last Sync</h3>
+          <h2>{lastSync}</h2>
+        </div>
+      </div>
+    </div>
+  );
 }

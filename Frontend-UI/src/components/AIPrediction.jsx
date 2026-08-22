@@ -15,14 +15,23 @@ export default function AIPrediction({ optimizationResponse, selectedRouteId }) 
   // Fetch the latest trip from Database service if no active optimizer response is present
   useEffect(() => {
     if (!optimizationResponse) {
-      fetch("http://localhost:8002/api/v1/trips")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.status === "success" && data.trips && data.trips.length > 0) {
-            setDbTrip(data.trips[0]);
+      const getLatestTrip = async () => {
+        try {
+          let res = await fetch("/api/v1/trips").catch(() => null);
+          if (!res || !res.ok) {
+            res = await fetch("http://localhost:8002/api/v1/trips");
           }
-        })
-        .catch((err) => console.log("AIPrediction DB fetch note:", err));
+          if (res && res.ok) {
+            const data = await res.json();
+            if (data.status === "success" && data.trips && data.trips.length > 0) {
+              setDbTrip(data.trips[0]);
+            }
+          }
+        } catch (err) {
+          console.log("AIPrediction DB fetch note:", err);
+        }
+      };
+      getLatestTrip();
     }
   }, [optimizationResponse]);
 
