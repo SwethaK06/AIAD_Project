@@ -1,5 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
