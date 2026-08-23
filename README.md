@@ -329,15 +329,17 @@ kubectl create secret generic logistics-secret --from-env-file=.env --dry-run=cl
 #### Step 2: Build and Load Images
 On macOS, build images using host Docker Desktop:
 ```bash
-docker build -t ml-service:v1 -f ML_Service/Dockerfile .
-docker build -t routing-service:v1 ./routing-engine
-docker build -t db-service:v1 ./green-logistics-database
-docker build --no-cache -t frontend-ui:v2 ./Frontend-UI
 
-minikube image load ml-service:v1
-minikube image load routing-service:v1
-minikube image load db-service:v1
-minikube image load frontend-ui:v2
+docker build -t ml-service:v2 -f ML_Service/Dockerfile .
+docker build -t routing-service:v3 ./routing-engine
+docker build -t db-service:v3 ./green-logistics-database
+docker build --no-cache -t frontend-ui:v6 ./Frontend-UI
+
+
+minikube image load ml-service:v2
+minikube image load routing-service:v3
+minikube image load db-service:v3
+minikube image load frontend-ui:v6
 ```
 
 #### Step 3: Deploy Manifest and Start Tunnel
