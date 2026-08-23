@@ -82,16 +82,17 @@ minikube start --driver=docker
 # to ensure you can access the database, here is the secret:
 kubectl create secret generic logistics-secret --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
 
-docker build -t ml-service:v1 -f ML_Service/Dockerfile .
-docker build -t routing-service:v1 ./routing-engine
-docker build -t db-service:v1 ./green-logistics-database
-docker build --no-cache -t frontend-ui:v2 ./Frontend-UI
+docker build -t ml-service:v2 -f ML_Service/Dockerfile .
+docker build -t routing-service:v2 ./routing-engine
+docker build -t db-service:v2 ./green-logistics-database
+docker build --no-cache -t frontend-ui:v6 ./Frontend-UI
 
 # 3. Load images into Minikube local container store
-minikube image load ml-service:v1
-minikube image load routing-service:v1
-minikube image load db-service:v1
-minikube image load frontend-ui:v2
+
+minikube image load ml-service:v2
+minikube image load routing-service:v2
+minikube image load db-service:v2
+minikube image load frontend-ui:v6
 
 # 4. Apply Kubernetes deployment manifest
 kubectl apply -f k8s-deployment.yaml
