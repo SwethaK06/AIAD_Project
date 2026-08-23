@@ -113,6 +113,8 @@ minikube tunnel
 # AFTER everything, after tunneling, and setting up kuberentes. To ACCESS the database.
 # In a NEW UBUNTU TERMINAL
 kubectl exec -it deployment/postgres-db -- psql -U green_admin -d green_logistics_db
+# If that does not work, run this instead
+kubectl exec -it deployment/postgres-db -- psql -U green_admin -d green-logistics-db
 
 # To see the rows of the table of the columsn trip_id, origin, destination, vehicle_type, predicted_co2_kgo2e, timestamp
 SELECT trip_id, origin, destination, vehicle_type, predicted_co2_kgco2e, timestamp FROM trips;
