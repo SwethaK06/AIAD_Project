@@ -1,4 +1,4 @@
-# ECOPath AI, EGT307 Group Project - Swetha, Prerana, Qian He, The handsome kind and loving man - Wei Jun
+# ECOPath AI, EGT307 Group Project - Swetha, Prerana, Qian He, Wei Jun
 
 This is a README file containing the documentation covering system architecture, data pipelines, Machine Learning Service/Preprocessing, deployment settings (Docker and Kubernetes), troubleshooting history, (for you cher) execution instructions + for macos, and limitations + further improvements.
 
