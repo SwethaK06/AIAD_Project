@@ -82,6 +82,7 @@ minikube start --driver=docker
 # to ensure you can access the database, here is the secret:
 kubectl create secret generic logistics-secret --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
 
+
 docker build -t ml-service:v2 -f ML_Service/Dockerfile .
 docker build -t routing-service:v3 ./routing-engine
 docker build -t db-service:v3 ./green-logistics-database
@@ -107,6 +108,14 @@ wsl # to ensure thaat you're in the same environemt.
 # 5. Start Minikube LoadBalancer Tunnel (Required in a separate terminal tab)
 minikube tunnel
 
+
+
+# AFTER everything, after tunneling, and setting up kuberentes. To ACCESS the database.
+# In a NEW UBUNTU TERMINAL
+kubectl exec -it deployment/postgres-db -- psql -U green_admin -d green_logistics_db
+
+# To see the rows of the table of the columsn trip_id, origin, destination, vehicle_type, predicted_co2_kgo2e, timestamp
+SELECT trip_id, origin, destination, vehicle_type, predicted_co2_kgco2e, timestamp FROM trips;
 
 ```
 The app is accessible from localhost 3000: `http://localhost:3000`.
@@ -354,8 +363,19 @@ kubectl apply -f k8s-deployment.yaml
 # On macOS, minikube tunnel will prompt for your Mac system administrator password
 minikube tunnel
 # at a different terminal
+
+
+
+# AFTER everything, after tunneling, and setting up kuberentes. To ACCESS the database.
+# In a NEW UBUNTU TERMINAL
+kubectl exec -it deployment/postgres-db -- psql -U green_admin -d green_logistics_db
+
+# To see the rows of the table of the columsn trip_id, origin, destination, vehicle_type, predicted_co2_kgo2e, timestamp
+SELECT trip_id, origin, destination, vehicle_type, predicted_co2_kgco2e, timestamp FROM trips;
 ```
 Access at `http://localhost:3000`.
+
+
 
 ---
 
