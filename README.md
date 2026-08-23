@@ -250,7 +250,7 @@ Applying user priority weights ($w_{\text{co2}} + w_{\text{time}} = 1.0$):
 - **Fastest Priority**: $w_{\text{co2}} = 0.20$, $w_{\text{time}} = 0.80$
 - **Balanced Priority**: $w_{\text{co2}} = 0.50$, $w_{\text{time}} = 0.50$
 
-```
+
 Routes are sorted ascending by cost score. The lowest penalty score is designated as `recommended_route_id`.
 
 ---
