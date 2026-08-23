@@ -83,15 +83,18 @@ minikube start --driver=docker
 kubectl create secret generic logistics-secret --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
 
 docker build -t ml-service:v2 -f ML_Service/Dockerfile .
-docker build -t routing-service:v2 ./routing-engine
-docker build -t db-service:v2 ./green-logistics-database
+docker build -t routing-service:v3 ./routing-engine
+docker build -t db-service:v3 ./green-logistics-database
 docker build --no-cache -t frontend-ui:v6 ./Frontend-UI
+
 
 # 3. Load images into Minikube local container store
 
+
+
 minikube image load ml-service:v2
-minikube image load routing-service:v2
-minikube image load db-service:v2
+minikube image load routing-service:v3
+minikube image load db-service:v3
 minikube image load frontend-ui:v6
 
 # 4. Apply Kubernetes deployment manifest
@@ -268,7 +271,7 @@ CREATE TABLE IF NOT EXISTS trips (
 ```
 
 ### Database Connection and Failover Resilience (`db.py` & `app.py`)
-`db.py` uses `psycopg` (v3) with a `connect_timeout=3` parameter. If PostgreSQL is offline or unreachable during local isolated testing, `app.py` catches database connection exceptions and automatically redirects logs to an in-memory array (`IN_MEMORY_TRIPS`). This prevents the UI from throwing 500 errors.
+`db.py` uses `psycopg` () with a `connect_timeout=3` parameter. If PostgreSQL is offline or unreachable during local isolated testing, `app.py` catches database connection exceptions and automatically redirects logs to an in-memory array (`IN_MEMORY_TRIPS`). This prevents the UI from throwing 500 errors.
 
 ---
 
@@ -330,16 +333,18 @@ kubectl create secret generic logistics-secret --from-env-file=.env --dry-run=cl
 On macOS, build images using host Docker Desktop:
 ```bash
 
+# Build container images
 docker build -t ml-service:v2 -f ML_Service/Dockerfile .
 docker build -t routing-service:v3 ./routing-engine
 docker build -t db-service:v3 ./green-logistics-database
 docker build --no-cache -t frontend-ui:v6 ./Frontend-UI
 
-
+# Load images into Minikube
 minikube image load ml-service:v2
 minikube image load routing-service:v3
 minikube image load db-service:v3
 minikube image load frontend-ui:v6
+
 ```
 
 #### Step 3: Deploy Manifest and Start Tunnel
