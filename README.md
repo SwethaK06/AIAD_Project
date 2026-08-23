@@ -309,8 +309,8 @@ This will contain reasons the errors we encountered and what did we do to fix th
 
 ### 4: When files are updated, caching means it'll always look at the old files.
 - Minikube's `containerd` runtime retained older compiled Docker layers for `frontend-ui:v1` because `imagePullPolicy: IfNotPresent` prevented pulling updated layers.
-- **Our resolution**: Built images using `--no-cache`, updated image tag to `frontend-ui:v2`, and set `imagePullPolicy: Never` in `k8s-deployment.yaml`.
-- **What we learn to do**: Increment image tags (e.g., `:v1` -> `:v2`) and use `imagePullPolicy: Never` when loading local images into Minikube.
+- **Our resolution**: Built images using `--no-cache`, updated image tag to `frontend-ui:v6`, and set `imagePullPolicy: Never` in `k8s-deployment.yaml`.
+- **What we learn to do**: Increment image tags (e.g., `:v1` -> `:v6`) and use `imagePullPolicy: Never` when loading local images into Minikube.
 
 ---
 
