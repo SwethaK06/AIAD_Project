@@ -1,3 +1,5 @@
+// Importing components from React-Leaflet, a library for integrating Leaflet maps with React
+// react-leaflet is a React library that lets yo uuse leaflet maps inside React applications.
 import {
   MapContainer,
   TileLayer,

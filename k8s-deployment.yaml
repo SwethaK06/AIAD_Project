@@ -110,7 +110,7 @@ spec:
     spec:
       containers:
         - name: db-service
-          image: db-service:v2
+          image: db-service:v3
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -188,7 +188,7 @@ spec:
     spec:
       containers:
         - name: routing-service
-          image: routing-service:v2
+          image: routing-service:v3
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -227,7 +227,7 @@ spec:
     spec:
       containers:
         - name: frontend-ui
-          image: frontend-ui:v5
+          image: frontend-ui:v6
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:

@@ -1,3 +1,6 @@
+// Import 2 React hooks: useState and useEffect
+// useState allows your component to store data that can change over time and trigger a re-render when updated
+// useEffect allows you to perform side effects in your component, such as fetching data or subscribing to events
 import { useState, useEffect } from "react";
 import {
   Chart as ChartJS,
@@ -12,6 +15,7 @@ import {
 } from "chart.js";
 import { Line, Bar } from "react-chartjs-2";
 
+// tells Chart.js which features/components your application is going to use.
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -23,6 +27,7 @@ ChartJS.register(
   Legend
 );
 
+// the below function is responsible for fetching data from the Postgres database service and storing it in the React component so that the Analytics charts can use it.
 export default function Analytics() {
   const [tripsData, setTripsData] = useState([]);
 

@@ -32,7 +32,7 @@ print(f"Dataset loaded in {time.time()-start:.2f} seconds")
 print("Rows:", len(df))
 print("Columns:", len(df.columns))
 
-#prepare features, keeping only the required columns
+#prepare features, keeping only the required columns.
 print("\n[STEP 2/7] Preparing features...")
 
 start = time.time()

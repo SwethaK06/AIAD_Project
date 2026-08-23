@@ -9,6 +9,8 @@ import {
   FaSyncAlt
 } from "react-icons/fa";
 
+// This code creates a starting list of all services in your application and their health-check information. 
+// It defines that your Service Status / System Health Dashboard will use to show whether each backend service is online or offline.
 const INITIAL_SERVICES = [
   {
     id: "database_service",
@@ -53,6 +55,7 @@ export default function ServiceStatus() {
   const [lastSync, setLastSync] = useState("--:--");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // It takes the services you defined in INITIAL_SERVICES, checks each service's health endpoint, measures how long each one takes to respond, and then updates the UI with Online/Offline status and latency.
   const checkHealth = useCallback(async () => {
     setIsRefreshing(true);
 

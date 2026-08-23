@@ -1,3 +1,5 @@
+// This function is the geocoding service
+// IT takes a normal Singapore address, sends it to Nomination/OpenStreetMap and converts address into latitude and longitude coordinates that the map and routing service can use.
 const NOMINATIM_URL =
   "https://nominatim.openstreetmap.org/search";
 

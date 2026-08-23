@@ -1,4 +1,9 @@
+// Imports functionality from another JavaScript package/module
+// useState --> let the component store changing data 
+// useEffect --> lets the component perform actions when something changes or when the component loads. 
 import { useState, useEffect } from "react";
+
+// Imports icons from the react-icons package
 import {
   FaTruck,
   FaWeightHanging,
@@ -9,10 +14,18 @@ import {
   FaRoute,
 } from "react-icons/fa";
 
+// The function below shows if the optimizer has given me a results. 
+// If the optmizaer did not give me a results, it will go to the database, get the latest trip and store it so the UI can display.
+
+// allow other files to import this component
+// The parent component passes optimizationResponse and selectedRouteId as props to this component
 export default function AIPrediction({ optimizationResponse, selectedRouteId }) {
+  // Creates a state variable called dbTrip and a function to update it, initialized to null
   const [dbTrip, setDbTrip] = useState(null);
 
   // Fetch the latest trip from Database service if no active optimizer response is present
+  // useEffect allows you to execute after the component renders
+  // it is being used to fetch the latest trip from the database service.
   useEffect(() => {
     if (!optimizationResponse) {
       const getLatestTrip = async () => {
@@ -36,6 +49,7 @@ export default function AIPrediction({ optimizationResponse, selectedRouteId }) 
   }, [optimizationResponse]);
 
   // Derive values from active optimizationResponse or latest DB trip
+  // Temporary variables used to determine what to display in the UI based on the available data
   let vehicleType = "Truck / Van";
   let cargoWeight = null;
   let traffic = "Normal";
@@ -44,6 +58,8 @@ export default function AIPrediction({ optimizationResponse, selectedRouteId }) 
   let duration = null;
   let routePriority = "Green";
 
+  // Checks if optimizationResponse is available and has routes, then extracts the relevant data from it.
+  // Decides if the UI should dispaly the current optimization response or the latest trip from the database based on the availability of data.
   if (optimizationResponse && optimizationResponse.routes && optimizationResponse.routes.length > 0) {
     const routes = optimizationResponse.routes;
     const activeRoute = routes.find((r) => r.route_id === selectedRouteId) || routes[0];

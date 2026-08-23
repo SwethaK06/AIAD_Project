@@ -1,3 +1,4 @@
+// Importing the tools, functions, and icons that another React component needs to use in order to work properly. These imports are necessary for the component to function correctly and provide the desired features and user interface elements.
 import { useState } from "react";
 import { geocodeSingaporeAddress } from "../services/geocoding";
 
@@ -11,6 +12,8 @@ import {
   FaBalanceScale,
 } from "react-icons/fa";
 
+// Sets up the RoutePlanner React component and creates all the state variables it needs to manage the route-planning process. 
+// The component remembers things like the origin and destination addresses, cargo weight, vehicle type, route priority, and the results of the optimization process. It also handles user interactions like selecting locations and confirming trips.
 export default function RoutePlanner({
   onOptimizationResponse,
   onRouteSelected,
@@ -40,6 +43,8 @@ export default function RoutePlanner({
   /*
    * Search for possible locations
    */
+  // Responsible for checking the user's route inputs and then searching for possible origin and then searching for possible origin and destination locations using the geocoding service. It validates the inputs, fetches matching locations, and updates the component's state with the results.
+  // It validates users inputs, searches for the origin, searches for the destination, gets their geographical information/coordinates, stores the possible locations so the user can select the corect ones.
   const handleCalculateRoute = async () => {
     setErrorMessage("");
     setRouteRequest(null);
@@ -120,6 +125,8 @@ export default function RoutePlanner({
    * When the user selects an origin,
    * store that location.
    */
+  // This functions runs when the user selects an origin from the list of possible locations returned by the geocoding search. 
+  // Save the user's selected origin, clear the search suggestion, and reset any previous route/error information. 
   const handleSelectOrigin = (result) => {
     setSelectedOrigin(result);
     setOriginResults([]);
@@ -190,7 +197,8 @@ export default function RoutePlanner({
 
     setRouteRequest(request);
     setIsOptimizing(true);
-
+    
+    // sends the user's route request to your Routing/Optimization service, receives the optimized route, selects the recommended route, and sends the results back to the Dashbaord.
     try {
       let response = await fetch("/api/v1/optimize-route", {
         method: "POST",

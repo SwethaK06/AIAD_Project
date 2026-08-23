@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#find the model path through the pkl file which contains the model
+#find the model path through the pkl file which contains the model.
 POSSIBLE_MODEL_PATHS = [
     os.getenv("MODEL_PATH", ""),
     "carbon_model.pkl",

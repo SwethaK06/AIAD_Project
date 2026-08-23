@@ -2,6 +2,7 @@ version: "3.8"
 
 services:
   # 1. PostgreSQL Database Container with Persistent Volume & Schema Initialization
+  # Create a PostgreSQL 15 database container, configure it using my .env file, persist the database data, automatically initialize the database schema, expose PostgreSQL to my computer, connect it to my application network, and check whether the database is healthly.
   postgres-db:
     image: postgres:15-alpine
     container_name: logistics_db
@@ -31,6 +32,7 @@ services:
       retries: 5
 
   # 2. Database REST API Microservice
+  # This define sthe database Service cotnainer in docker compose. It builds the database service from the Dockerfile in the green-logistics-database directory, sets up environment variables, exposes the service on a specific port, and ensures it only starts after the PostgreSQL database is healthy.
   db_service:
     build:
       context: ./green-logistics-database
@@ -53,6 +55,7 @@ services:
       - logistics_net
 
   # 3. Machine Learning Carbon Prediction Service
+  # This defines the ML container in docker compose. It builds the ML service from the Dockerfile in the ML_Service directory, sets up environment variables, exposes the service on a specific port, and ensures it only starts after the PostgreSQL database is healthy.
   ml-service:
     build:
       context: .
@@ -68,6 +71,7 @@ services:
           - ml_service
 
   # 4. Route Optimization Engine
+  # This defines the routing service container in docker compose. It builds the routing service from the Dockerfile in the routing-engine directory, sets up environment variables, exposes the service on a specific port, and ensures it only starts after the ML service and database service are healthy.
   routing_service:
     build:
       context: ./routing-engine
@@ -88,6 +92,7 @@ services:
       - logistics_net
 
   # 5. Frontend UI Web Application
+  # Its purpose is to build your React frontend application, run it inside a Docker container, make it accessible from your browser, and connect it to the same Docker network as your backend services.
   frontend:
     build:
       context: ./Frontend-UI
